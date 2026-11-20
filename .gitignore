@@ -1,0 +1,28 @@
+# Visual Studio user and cache files
+.vs/
+*.user
+*.suo
+
+# Build output
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# Intermediate compiler output
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.tlog/
+*.lastbuildstate
+*.recipe
+*.log
+
+# ImGui user settings
+imgui.ini
+
+# Visual Studio generated files
+*.VC.db
+*.VC.opendb

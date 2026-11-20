@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Analyser"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a01}</UniqueIdentifier></Filter><Filter Include="Analyser\Format"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a02}</UniqueIdentifier></Filter><Filter Include="Analyser\StructView"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a03}</UniqueIdentifier></Filter><Filter Include="MemoryManager">
+      <UniqueIdentifier>{e1a2b3c4-5d6e-4f70-8192-a3b4c5d6e7f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Third-Party">
+      <UniqueIdentifier>{a7f21c45-6e9a-4b3b-9a7f-1e4f2c8d6b10}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Third-Party\ImGui">
+      <UniqueIdentifier>{b8f32d56-7fab-4c4c-a8b0-2f5f3d9e7c21}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Third-Party\ImGui\Backends">
+      <UniqueIdentifier>{c9043e67-8abc-4d5d-b9c1-3a604eaf8d32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Third-Party\DirectX">
+      <UniqueIdentifier>{da154f78-9bcd-4e6e-cad2-4b715fba9e43}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="app\Application.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGui\imgui.cpp">
+      <Filter>Third-Party\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGui\imgui_demo.cpp">
+      <Filter>Third-Party\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGui\imgui_draw.cpp">
+      <Filter>Third-Party\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGui\imgui_tables.cpp">
+      <Filter>Third-Party\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGui\imgui_widgets.cpp">
+      <Filter>Third-Party\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGui\backends\imgui_impl_dx11.cpp">
+      <Filter>Third-Party\ImGui\Backends</Filter>
+    </ClCompile>
+    <ClCompile Include="third_party\ImGui\backends\imgui_impl_win32.cpp">
+      <Filter>Third-Party\ImGui\Backends</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager\MemoryManager.cpp">
+      <Filter>MemoryManager</Filter>
+    </ClCompile>
+    <ClCompile Include="analyser\Format\AddressParse.cpp"><Filter>Analyser\Format</Filter>
+    </ClCompile><ClCompile Include="analyser\AnalyserModule.cpp"><Filter>Analyser</Filter></ClCompile>
+    <ClCompile Include="analyser\StructView\StructViewPanel.cpp"><Filter>Analyser\StructView</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\MainPanel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\Win32Window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\Dx11Renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\ImGuiSetup.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MemoryManager\MemoryManager.h">
+      <Filter>MemoryManager</Filter>
+    </ClInclude>
+    <ClInclude Include="analyser\Format\AddressParse.h"><Filter>Analyser\Format</Filter>
+    </ClInclude>
+    <ClInclude Include="analyser\Format\FieldTypes.h"><Filter>Analyser\Format</Filter></ClInclude><ClInclude Include="analyser\AnalyserModule.h"><Filter>Analyser</Filter></ClInclude><ClInclude Include="analyser\AnalyserState.h"><Filter>Analyser</Filter></ClInclude><ClInclude Include="app\AppModule.h"><Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="analyser\StructView\StructViewPanel.h"><Filter>Analyser\StructView</Filter>
+    </ClInclude>
+    <ClInclude Include="app\Application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\MainPanel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\UiPanel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\UiState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\Win32Window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\Dx11Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\WindowConfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\ImGuiSetup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore" />
+  </ItemGroup>
+</Project>
