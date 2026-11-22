@@ -271,6 +271,27 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 		rateBase.clear();
 		rates.clear();
 	}
+	ImGui::SameLine();
+	if (ImGui::Button("Scan hit static refs"))
+	{
+		std::vector<uintptr_t> hitTargets;
+		for (const auto& [address, stat] : stats)
+		{
+			if (stat.count > 0)
+			{
+				hitTargets.push_back(address);
+			}
+		}
+		if (hitTargets.empty())
+		{
+			hitTargets = targets;
+		}
+		if (!hitTargets.empty())
+		{
+			state.staticBatchScanRequests.push_back(std::move(hitTargets));
+			status = "Queued static scan";
+		}
+	}
 
 	ImGui::SetNextItemWidth(180);
 	ImGui::InputTextWithHint("##traceName", "trace name", traceName, sizeof(traceName));
@@ -411,14 +432,28 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 					state.disasmGotoRequests.push_back(entry.address);
 				}
 				ImGui::PopStyleColor();
-				if (ImGui::IsItemHovered())
+				if (ImGui::BeginPopupContextItem("traceRowCtx"))
 				{
-					ImGui::SetTooltip("0x%llX\nDouble-click to open in disassembly\nRight-click to remove",
-						static_cast<unsigned long long>(entry.address));
+					ImGui::TextDisabled("0x%llX", static_cast<unsigned long long>(entry.address));
+					ImGui::Separator();
+					if (ImGui::MenuItem("Find static references"))
+					{
+						state.staticScanRequests.push_back(entry.address);
+					}
+					if (ImGui::MenuItem("Open in Disassembly"))
+					{
+						state.disasmGotoRequests.push_back(entry.address);
+					}
+					if (ImGui::MenuItem("Remove from trace"))
+					{
+						remove = entry.address;
+					}
+					ImGui::EndPopup();
 				}
-				if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+				else if (ImGui::IsItemHovered())
 				{
-					remove = entry.address;
+					ImGui::SetTooltip("0x%llX\nDouble-click to open in disassembly\nRight-click for static refs / remove",
+						static_cast<unsigned long long>(entry.address));
 				}
 				ImGui::PopID();
 			}

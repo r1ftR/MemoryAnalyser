@@ -152,6 +152,11 @@ void DisasmView::RenderContextMenu(AnalyserState& state, disasm::SymbolResolver*
 			state.traceRequests.push_back(menuAddress);
 			status = "Added to trace";
 		}
+		if (ImGui::MenuItem("Find static references"))
+		{
+			state.staticScanRequests.push_back(menuAddress);
+			status = "Scanning static references";
+		}
 		if (menuTarget != 0)
 		{
 			ImGui::Separator();
@@ -163,6 +168,11 @@ void DisasmView::RenderContextMenu(AnalyserState& state, disasm::SymbolResolver*
 			{
 				state.traceRequests.push_back(menuTarget);
 				status = "Added to trace";
+			}
+			if (ImGui::MenuItem("Find static references for target"))
+			{
+				state.staticScanRequests.push_back(menuTarget);
+				status = "Scanning target static references";
 			}
 		}
 		ImGui::EndPopup();

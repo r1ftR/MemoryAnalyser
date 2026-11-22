@@ -147,9 +147,9 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="analyser\Disasm\DisasmView.new.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MemoryManager\MemoryManager.cpp" />
+    <ClCompile Include="MemoryManager\PatternScanner.cpp" />
     <ClCompile Include="analyser\Format\AddressParse.cpp" />
     <ClCompile Include="analyser\AnalyserModule.cpp" />
     <ClCompile Include="analyser\Format\TypeDetect.cpp" />
@@ -160,6 +160,9 @@
     <ClCompile Include="analyser\Disasm\DisasmView.cpp" />
     <ClCompile Include="analyser\Disasm\Symbols.cpp" />
     <ClCompile Include="analyser\Disasm\TraceView.cpp" />
+    <ClCompile Include="analyser\Disasm\StaticRefsView.cpp" />
+    <ClCompile Include="analyser\StaticResolver\StaticLocator.cpp" />
+    <ClCompile Include="analyser\StaticResolver\StaticFinder.cpp" />
     <ClCompile Include="MemoryManager\ProcessDebugger.cpp" />
     <ClCompile Include="app\Application.cpp" />
     <ClCompile Include="platform\ImGuiSetup.cpp" />
@@ -233,6 +236,10 @@
     <ClInclude Include="analyser\Disasm\DisasmView.h" />
     <ClInclude Include="analyser\Disasm\Symbols.h" />
     <ClInclude Include="analyser\Disasm\TraceView.h" />
+    <ClInclude Include="analyser\Disasm\StaticRefsView.h" />
+    <ClInclude Include="analyser\StaticResolver\StaticLocator.h" />
+    <ClInclude Include="analyser\StaticResolver\StaticFinder.h" />
+    <ClInclude Include="MemoryManager\PatternScanner.h" />
     <ClInclude Include="MemoryManager\ProcessDebugger.h" />
     <ClInclude Include="platform\ImGuiSetup.h" />
     <ClInclude Include="platform\Renderer.h" />
@@ -245,7 +252,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
-    <None Include="analyser\Disasm\DisasmView.h.new" />
     <None Include="analyser\Format\TypeDetect.cpp.new" />
     <None Include="analyser\Format\TypeDetect.h.new" />
   </ItemGroup>

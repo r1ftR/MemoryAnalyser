@@ -55,6 +55,13 @@ struct SavedTrace
 	std::vector<ModuleOffset> targets;
 };
 
+struct SavedLocator
+{
+	std::string name;
+	// Serialized polymorphic locator string from IStaticLocator::Serialize().
+	std::string spec;
+};
+
 // All saved struct tables, stored in one plain-text file next to the exe.
 class TableStore
 {
@@ -80,6 +87,10 @@ public:
 	void UpsertTrace(SavedTrace trace);
 	void RemoveTrace(size_t index);
 	const std::vector<SavedTrace>& Traces() const { return traces; }
+
+	void UpsertLocator(SavedLocator locator);
+	void RemoveLocator(size_t index);
+	const std::vector<SavedLocator>& Locators() const { return locators; }
 	const std::string& LastError() const { return lastError; }
 
 private:
@@ -88,6 +99,7 @@ private:
 	std::vector<SavedDisasm> disasmViews;
 	std::vector<SavedLabel> labels;
 	std::vector<SavedTrace> traces;
+	std::vector<SavedLocator> locators;
 	std::string lastError;
 };
 }

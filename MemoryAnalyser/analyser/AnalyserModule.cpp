@@ -65,6 +65,7 @@ void AnalyserModule::OnFrame(ui::UiState& ui)
 		Rendertables();
 		RenderDisasmViews();
 		RenderTraceViews();
+		RenderStaticRefsViews();
 	}
 	HandleSymbolRequests();
 	HandleAttachRequests();
@@ -379,6 +380,16 @@ void AnalyserModule::HandleSymbolRequests()
 		state.traceSaveRequests.clear();
 		store.Save();
 	}
+
+	if (!state.locatorSaveRequests.empty())
+	{
+		for (auto& locator : state.locatorSaveRequests)
+		{
+			store.UpsertLocator(std::move(locator));
+		}
+		state.locatorSaveRequests.clear();
+		store.Save();
+	}
 }
 
 void AnalyserModule::RenderTraceViews()
@@ -475,8 +486,47 @@ void AnalyserModule::RenderTraceViews()
 	}
 }
 
+void AnalyserModule::RenderStaticRefsViews()
+{
+	if (!memory)
+	{
+		state.openStaticRefsRequested = false;
+		state.staticScanRequests.clear();
+		state.staticBatchScanRequests.clear();
+		return;
+	}
+
+	if (state.openStaticRefsRequested ||
+		((!state.staticScanRequests.empty() || !state.staticBatchScanRequests.empty()) && staticRefsViews.empty()))
+	{
+		staticRefsViews.push_back(std::make_unique<StaticRefsView>(nextStaticRefsId++));
+	}
+	state.openStaticRefsRequested = false;
+
+	if (!staticRefsViews.empty())
+	{
+		for (const uintptr_t target : state.staticScanRequests)
+		{
+			staticRefsViews.back()->ScanTarget(*memory, symbols.get(), target, state.attach.PointerSize());
+		}
+		for (auto& batch : state.staticBatchScanRequests)
+		{
+			staticRefsViews.back()->ScanBatch(*memory, symbols.get(), std::move(batch), state.attach.PointerSize());
+		}
+	}
+	state.staticScanRequests.clear();
+	state.staticBatchScanRequests.clear();
+
+	for (size_t i = 0; i < staticRefsViews.size(); ++i)
+	{
+		staticRefsViews[i]->Render(state, *memory, symbols.get());
+	}
+	std::erase_if(staticRefsViews, [](const auto& view) { return !view->IsOpen(); });
+}
+
 void AnalyserModule::ClearDisasm()
 {
+	staticRefsViews.clear();
 	traceViews.clear();
 	debugger.reset();
 	symbols.reset();
@@ -489,6 +539,8 @@ void AnalyserModule::ClearDisasm()
 	state.traceRequests.clear();
 	state.disasmGotoRequests.clear();
 	state.labelRequests.clear();
+	state.staticScanRequests.clear();
+	state.staticBatchScanRequests.clear();
 }
 
 void AnalyserModule::RenderDisasmSection()
@@ -677,6 +729,69 @@ void AnalyserModule::RenderDisasmSection()
 		store.RemoveTrace(static_cast<size_t>(state.selectedSavedTrace));
 		store.Save();
 		state.selectedSavedTrace = -1;
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SeparatorText("Static references & signatures");
+	if (ImGui::Button("New static refs window"))
+	{
+		state.openStaticRefsRequested = true;
+	}
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!address);
+	if (ImGui::Button("Find static refs at Address"))
+	{
+		state.staticScanRequests.push_back(*address);
+	}
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::TextDisabled("(?)");
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::SetTooltip("Automatically finds ASLR-safe RVAs, exports, unique Zydis byte signatures,\n"
+			"static globals used inside a function, and callers / vtable pointers.");
+	}
+
+	const auto& savedLocators = store.Locators();
+	if (state.selectedSavedLocator >= static_cast<int>(savedLocators.size()))
+	{
+		state.selectedSavedLocator = -1;
+	}
+	ImGui::SetNextItemWidth(200);
+	if (ImGui::BeginCombo("##savedLocator", state.selectedSavedLocator >= 0 ? savedLocators[state.selectedSavedLocator].name.c_str() : "(none)"))
+	{
+		for (int index = 0; index < static_cast<int>(savedLocators.size()); ++index)
+		{
+			if (ImGui::Selectable(savedLocators[index].name.c_str(), index == state.selectedSavedLocator))
+			{
+				state.selectedSavedLocator = index;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::BeginDisabled(state.selectedSavedLocator < 0 || !memory);
+	ImGui::SameLine();
+	if (ImGui::Button("Resolve & Disasm##locator"))
+	{
+		const auto& savedLoc = savedLocators[state.selectedSavedLocator];
+		if (const auto locator = IStaticLocator::Deserialize(savedLoc.spec))
+		{
+			ResolveContext ctx{ *memory, symbols.get(), state.attach.PointerSize() };
+			if (const auto resolved = locator->Resolve(ctx))
+			{
+				DisasmOpenRequest req;
+				req.address = *resolved;
+				req.name = savedLoc.name;
+				state.disasmOpenRequests.push_back(std::move(req));
+			}
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Delete##locator"))
+	{
+		store.RemoveLocator(static_cast<size_t>(state.selectedSavedLocator));
+		store.Save();
+		state.selectedSavedLocator = -1;
 	}
 	ImGui::EndDisabled();
 

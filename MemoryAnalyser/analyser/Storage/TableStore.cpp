@@ -73,6 +73,7 @@ bool TableStore::Load()
 	disasmViews.clear();
 	labels.clear();
 	traces.clear();
+	locators.clear();
 	std::ifstream file(path);
 	if (!file)
 	{
@@ -82,6 +83,7 @@ bool TableStore::Load()
 	SavedTable* current = nullptr;
 	SavedDisasm* currentDisasm = nullptr;
 	SavedTrace* currentTrace = nullptr;
+	SavedLocator* currentLocator = nullptr;
 	bool inLabels = false;
 	std::string line;
 	while (std::getline(file, line))
@@ -99,6 +101,7 @@ bool TableStore::Load()
 			current = &tables.back();
 			currentDisasm = nullptr;
 			currentTrace = nullptr;
+			currentLocator = nullptr;
 			inLabels = false;
 			continue;
 		}
@@ -117,6 +120,16 @@ bool TableStore::Load()
 			current = nullptr;
 			traces.push_back(std::move(trace));
 			currentTrace = &traces.back();
+			continue;
+		}
+		if (line == "kind=locator" && current != nullptr)
+		{
+			SavedLocator locator;
+			locator.name = current->name;
+			tables.pop_back();
+			current = nullptr;
+			locators.push_back(std::move(locator));
+			currentLocator = &locators.back();
 			continue;
 		}
 		if (inLabels)
@@ -139,6 +152,14 @@ bool TableStore::Load()
 			if (line.rfind("at=", 0) == 0 && ParseModuleOffset(line.substr(3), target))
 			{
 				currentTrace->targets.push_back(std::move(target));
+			}
+			continue;
+		}
+		if (currentLocator != nullptr)
+		{
+			if (line.rfind("spec=", 0) == 0)
+			{
+				currentLocator->spec = Trim(line.substr(5));
 			}
 			continue;
 		}
@@ -262,6 +283,14 @@ bool TableStore::Save()
 		}
 		file << '\n';
 	}
+	for (const auto& locator : locators)
+	{
+		if (!locator.spec.empty())
+		{
+			file << '[' << locator.name << "]\nkind=locator\n";
+			file << "spec=" << locator.spec << "\n\n";
+		}
+	}
 	lastError.clear();
 	return true;
 }
@@ -349,6 +378,27 @@ void TableStore::Remove(size_t index)
 	if (index < tables.size())
 	{
 		tables.erase(tables.begin() + static_cast<std::ptrdiff_t>(index));
+	}
+}
+
+void TableStore::UpsertLocator(SavedLocator locator)
+{
+	for (auto& existing : locators)
+	{
+		if (existing.name == locator.name)
+		{
+			existing = std::move(locator);
+			return;
+		}
+	}
+	locators.push_back(std::move(locator));
+}
+
+void TableStore::RemoveLocator(size_t index)
+{
+	if (index < locators.size())
+	{
+		locators.erase(locators.begin() + static_cast<std::ptrdiff_t>(index));
 	}
 }
 }

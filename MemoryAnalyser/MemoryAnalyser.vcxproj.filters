@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Analyser"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a01}</UniqueIdentifier></Filter><Filter Include="Analyser\Format"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a02}</UniqueIdentifier></Filter><Filter Include="Analyser\StructTable"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a03}</UniqueIdentifier></Filter><Filter Include="Analyser\Disasm"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a05}</UniqueIdentifier></Filter><Filter Include="Third-Party\Zydis"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a06}</UniqueIdentifier></Filter><Filter Include="Analyser\Storage"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a04}</UniqueIdentifier></Filter><Filter Include="MemoryManager">
+    <Filter Include="Analyser"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a01}</UniqueIdentifier></Filter><Filter Include="Analyser\Format"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a02}</UniqueIdentifier></Filter><Filter Include="Analyser\StructTable"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a03}</UniqueIdentifier></Filter><Filter Include="Analyser\Disasm"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a05}</UniqueIdentifier></Filter><Filter Include="Analyser\StaticResolver"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a07}</UniqueIdentifier></Filter><Filter Include="Third-Party\Zydis"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a06}</UniqueIdentifier></Filter><Filter Include="Analyser\Storage"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a04}</UniqueIdentifier></Filter><Filter Include="MemoryManager">
       <UniqueIdentifier>{e1a2b3c4-5d6e-4f70-8192-a3b4c5d6e7f8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Third-Party">
@@ -160,5 +160,13 @@
     <ClInclude Include="analyser\Disasm\Symbols.h"><Filter>Analyser\Disasm</Filter></ClInclude>
     <ClInclude Include="analyser\Disasm\TraceView.h"><Filter>Analyser\Disasm</Filter></ClInclude>
     <ClInclude Include="MemoryManager\ProcessDebugger.h"><Filter>MemoryManager</Filter></ClInclude>
+    <ClCompile Include="MemoryManager\PatternScanner.cpp"><Filter>MemoryManager</Filter></ClCompile>
+    <ClInclude Include="MemoryManager\PatternScanner.h"><Filter>MemoryManager</Filter></ClInclude>
+    <ClCompile Include="analyser\Disasm\StaticRefsView.cpp"><Filter>Analyser\Disasm</Filter></ClCompile>
+    <ClInclude Include="analyser\Disasm\StaticRefsView.h"><Filter>Analyser\Disasm</Filter></ClInclude>
+    <ClCompile Include="analyser\StaticResolver\StaticLocator.cpp"><Filter>Analyser\StaticResolver</Filter></ClCompile>
+    <ClInclude Include="analyser\StaticResolver\StaticLocator.h"><Filter>Analyser\StaticResolver</Filter></ClInclude>
+    <ClCompile Include="analyser\StaticResolver\StaticFinder.cpp"><Filter>Analyser\StaticResolver</Filter></ClCompile>
+    <ClInclude Include="analyser\StaticResolver\StaticFinder.h"><Filter>Analyser\StaticResolver</Filter></ClInclude>
   </ItemGroup>
 </Project>

@@ -5,6 +5,7 @@
 #include "StructTable/StructTable.h"
 #include "Disasm/DisasmView.h"
 #include "Disasm/Pe.h"
+#include "Disasm/StaticRefsView.h"
 #include "Disasm/Symbols.h"
 #include "Disasm/TraceView.h"
 #include "../MemoryManager/MemoryManager.h"
@@ -38,6 +39,7 @@ private:
 	void RenderDisasmViews();
 	void ClearDisasm();
 	void RenderTraceViews();
+	void RenderStaticRefsViews();
 	void HandleSymbolRequests();
 	void ApplySavedLabels();
 
@@ -54,5 +56,7 @@ private:
 	std::unique_ptr<ProcessDebugger> debugger;
 	std::vector<std::unique_ptr<TraceView>> traceViews;
 	int nextTraceId = 0;
+	std::vector<std::unique_ptr<StaticRefsView>> staticRefsViews;
+	int nextStaticRefsId = 0;
 };
 }

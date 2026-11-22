@@ -74,5 +74,11 @@ struct AnalyserState
 	bool openTraceRequested = false;
 	bool startDebuggerRequested = false;
 	bool stopDebuggerRequested = false;
+
+	bool openStaticRefsRequested = false;
+	std::vector<uintptr_t> staticScanRequests;
+	std::vector<std::vector<uintptr_t>> staticBatchScanRequests;
+	std::vector<SavedLocator> locatorSaveRequests;
+	int selectedSavedLocator = -1;
 };
 }

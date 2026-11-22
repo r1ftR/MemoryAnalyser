@@ -6,12 +6,15 @@
 namespace analyser::disasm {
 
 enum class FlowKind { None, Jump, CondJump, Call, Ret };
+enum class StaticAccessKind { None, Read, Write, ReadWrite, Lea, CallSlot, JumpSlot };
 
 struct InstructionLine
 {
 	uintptr_t address = 0;
 	uint8_t length = 0;
 	uint8_t bytes[15] = {};
+	// Bit i is 1 when bytes[i] is a relocatable displacement or address-sized/relative immediate.
+	uint16_t wildcardMask = 0;
 	std::string text;
 	std::string mnemonic;
 	bool valid = false;
@@ -21,6 +24,10 @@ struct InstructionLine
 	// Indirect branch through a fixed memory slot, e.g. call [rip+X] (IAT).
 	bool hasMemTarget = false;
 	uintptr_t memTarget = 0;
+	// Any static memory operand ([rip+disp32] or fixed [disp32]), including data reads/writes/LEA.
+	bool hasStaticMem = false;
+	uintptr_t staticMemAddress = 0;
+	StaticAccessKind staticAccess = StaticAccessKind::None;
 };
 
 // Decodes buffer (located at runtimeAddress in the target) into lines.
