@@ -37,6 +37,18 @@ std::string Trim(const std::string& text)
 	return text.substr(start, end - start + 1);
 }
 
+bool ParseModuleOffset(const std::string& text, ModuleOffset& out)
+{
+	const size_t plus = text.rfind('+');
+	if (plus == std::string::npos || plus == 0)
+	{
+		return false;
+	}
+	out.module = Trim(text.substr(0, plus));
+	out.offset = std::strtoull(text.c_str() + plus + 1, nullptr, 16);
+	return true;
+}
+
 bool ParseTypeName(const std::string& text, FieldType& type)
 {
 	for (int index = 0; index < static_cast<int>(FieldType::Count); ++index)
@@ -58,6 +70,9 @@ TableStore::TableStore() : path(DefaultPath())
 bool TableStore::Load()
 {
 	tables.clear();
+	disasmViews.clear();
+	labels.clear();
+	traces.clear();
 	std::ifstream file(path);
 	if (!file)
 	{
@@ -65,6 +80,9 @@ bool TableStore::Load()
 	}
 
 	SavedTable* current = nullptr;
+	SavedDisasm* currentDisasm = nullptr;
+	SavedTrace* currentTrace = nullptr;
+	bool inLabels = false;
 	std::string line;
 	while (std::getline(file, line))
 	{
@@ -79,6 +97,73 @@ bool TableStore::Load()
 			table.name = line.substr(1, line.size() - 2);
 			tables.push_back(std::move(table));
 			current = &tables.back();
+			currentDisasm = nullptr;
+			currentTrace = nullptr;
+			inLabels = false;
+			continue;
+		}
+		if (line == "kind=labels" && current != nullptr)
+		{
+			tables.pop_back();
+			current = nullptr;
+			inLabels = true;
+			continue;
+		}
+		if (line == "kind=trace" && current != nullptr)
+		{
+			SavedTrace trace;
+			trace.name = current->name;
+			tables.pop_back();
+			current = nullptr;
+			traces.push_back(std::move(trace));
+			currentTrace = &traces.back();
+			continue;
+		}
+		if (inLabels)
+		{
+			const size_t eq = line.find('=');
+			SavedLabel label;
+			if (eq != std::string::npos && ParseModuleOffset(line.substr(0, eq), label.at))
+			{
+				label.name = Trim(line.substr(eq + 1));
+				if (!label.name.empty())
+				{
+					labels.push_back(std::move(label));
+				}
+			}
+			continue;
+		}
+		if (currentTrace != nullptr)
+		{
+			ModuleOffset target;
+			if (line.rfind("at=", 0) == 0 && ParseModuleOffset(line.substr(3), target))
+			{
+				currentTrace->targets.push_back(std::move(target));
+			}
+			continue;
+		}
+		if (line == "kind=disasm" && current != nullptr)
+		{
+			SavedDisasm view;
+			view.name = current->name;
+			tables.pop_back();
+			current = nullptr;
+			disasmViews.push_back(std::move(view));
+			currentDisasm = &disasmViews.back();
+			continue;
+		}
+		if (currentDisasm != nullptr)
+		{
+			if (line.rfind("arch=", 0) == 0)
+			{
+				currentDisasm->pointerSize = line.substr(5) == "x86" ? 4 : 8;
+			}
+			else if (line.rfind("base=", 0) == 0)
+			{
+				const char* value = line.c_str() + 5;
+				currentDisasm->relative = *value == '+';
+				currentDisasm->address = std::strtoull(currentDisasm->relative ? value + 1 : value, nullptr, 16);
+			}
 			continue;
 		}
 		if (current == nullptr)
@@ -152,6 +237,31 @@ bool TableStore::Save()
 		}
 		file << '\n';
 	}
+	for (const auto& view : disasmViews)
+	{
+		file << '[' << view.name << "]\n";
+		file << "kind=disasm\n";
+		file << "arch=" << (view.pointerSize == 4 ? "x86" : "x64") << '\n';
+		file << "base=" << (view.relative ? "+" : "") << std::hex << std::uppercase << view.address << std::dec << "\n\n";
+	}
+	if (!labels.empty())
+	{
+		file << "[Labels]\nkind=labels\n";
+		for (const auto& label : labels)
+		{
+			file << label.at.module << '+' << std::hex << std::uppercase << label.at.offset << std::dec << '=' << label.name << '\n';
+		}
+		file << '\n';
+	}
+	for (const auto& trace : traces)
+	{
+		file << '[' << trace.name << "]\nkind=trace\n";
+		for (const auto& target : trace.targets)
+		{
+			file << "at=" << target.module << '+' << std::hex << std::uppercase << target.offset << std::dec << '\n';
+		}
+		file << '\n';
+	}
 	lastError.clear();
 	return true;
 }
@@ -167,6 +277,71 @@ void TableStore::Upsert(SavedTable table)
 		}
 	}
 	tables.push_back(std::move(table));
+}
+
+void TableStore::SetLabel(SavedLabel label)
+{
+	for (size_t i = 0; i < labels.size(); ++i)
+	{
+		if (_stricmp(labels[i].at.module.c_str(), label.at.module.c_str()) == 0 && labels[i].at.offset == label.at.offset)
+		{
+			if (label.name.empty())
+			{
+				labels.erase(labels.begin() + static_cast<std::ptrdiff_t>(i));
+			}
+			else
+			{
+				labels[i].name = std::move(label.name);
+			}
+			return;
+		}
+	}
+	if (!label.name.empty())
+	{
+		labels.push_back(std::move(label));
+	}
+}
+
+void TableStore::UpsertTrace(SavedTrace trace)
+{
+	for (auto& existing : traces)
+	{
+		if (existing.name == trace.name)
+		{
+			existing = std::move(trace);
+			return;
+		}
+	}
+	traces.push_back(std::move(trace));
+}
+
+void TableStore::RemoveTrace(size_t index)
+{
+	if (index < traces.size())
+	{
+		traces.erase(traces.begin() + static_cast<std::ptrdiff_t>(index));
+	}
+}
+
+void TableStore::UpsertDisasm(SavedDisasm view)
+{
+	for (auto& existing : disasmViews)
+	{
+		if (existing.name == view.name)
+		{
+			existing = std::move(view);
+			return;
+		}
+	}
+	disasmViews.push_back(std::move(view));
+}
+
+void TableStore::RemoveDisasm(size_t index)
+{
+	if (index < disasmViews.size())
+	{
+		disasmViews.erase(disasmViews.begin() + static_cast<std::ptrdiff_t>(index));
+	}
 }
 
 void TableStore::Remove(size_t index)

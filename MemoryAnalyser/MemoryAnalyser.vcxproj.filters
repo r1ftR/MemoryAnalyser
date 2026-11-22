@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Analyser"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a01}</UniqueIdentifier></Filter><Filter Include="Analyser\Format"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a02}</UniqueIdentifier></Filter><Filter Include="Analyser\StructTable"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a03}</UniqueIdentifier></Filter><Filter Include="Analyser\Storage"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a04}</UniqueIdentifier></Filter><Filter Include="MemoryManager">
+    <Filter Include="Analyser"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a01}</UniqueIdentifier></Filter><Filter Include="Analyser\Format"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a02}</UniqueIdentifier></Filter><Filter Include="Analyser\StructTable"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a03}</UniqueIdentifier></Filter><Filter Include="Analyser\Disasm"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a05}</UniqueIdentifier></Filter><Filter Include="Third-Party\Zydis"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a06}</UniqueIdentifier></Filter><Filter Include="Analyser\Storage"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a04}</UniqueIdentifier></Filter><Filter Include="MemoryManager">
       <UniqueIdentifier>{e1a2b3c4-5d6e-4f70-8192-a3b4c5d6e7f8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Third-Party">
@@ -119,5 +119,46 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="analyser\Disasm\Pe.cpp"><Filter>Analyser\Disasm</Filter></ClCompile>
+    <ClCompile Include="analyser\Disasm\Disassembler.cpp"><Filter>Analyser\Disasm</Filter></ClCompile>
+    <ClCompile Include="analyser\Disasm\DisasmView.cpp"><Filter>Analyser\Disasm</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Decoder.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\DecoderData.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Disassembler.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Encoder.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\EncoderData.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Formatter.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\FormatterATT.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\FormatterBase.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\FormatterBuffer.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\FormatterIntel.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\MetaInfo.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Mnemonic.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Register.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Segment.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\SharedData.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\String.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Utils.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\src\Zydis.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\zycore\src\Allocator.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\zycore\src\Bitset.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\zycore\src\Format.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\zycore\src\List.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\zycore\src\String.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\zycore\src\Vector.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClCompile Include="third_party\Zydis\zycore\src\Zycore.c"><Filter>Third-Party\Zydis</Filter></ClCompile>
+    <ClInclude Include="analyser\Disasm\Pe.h"><Filter>Analyser\Disasm</Filter></ClInclude>
+    <ClInclude Include="analyser\Disasm\Disassembler.h"><Filter>Analyser\Disasm</Filter></ClInclude>
+    <ClInclude Include="analyser\Disasm\DisasmView.h"><Filter>Analyser\Disasm</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="analyser\Disasm\Symbols.cpp"><Filter>Analyser\Disasm</Filter></ClCompile>
+    <ClCompile Include="analyser\Disasm\TraceView.cpp"><Filter>Analyser\Disasm</Filter></ClCompile>
+    <ClCompile Include="MemoryManager\ProcessDebugger.cpp"><Filter>MemoryManager</Filter></ClCompile>
+    <ClInclude Include="analyser\Disasm\Symbols.h"><Filter>Analyser\Disasm</Filter></ClInclude>
+    <ClInclude Include="analyser\Disasm\TraceView.h"><Filter>Analyser\Disasm</Filter></ClInclude>
+    <ClInclude Include="MemoryManager\ProcessDebugger.h"><Filter>MemoryManager</Filter></ClInclude>
   </ItemGroup>
 </Project>

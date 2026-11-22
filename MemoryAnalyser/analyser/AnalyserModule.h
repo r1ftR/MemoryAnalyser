@@ -3,6 +3,12 @@
 #include "../app/AppModule.h"
 #include "AnalyserState.h"
 #include "StructTable/StructTable.h"
+#include "Disasm/DisasmView.h"
+#include "Disasm/Pe.h"
+#include "Disasm/Symbols.h"
+#include "Disasm/TraceView.h"
+#include "../MemoryManager/MemoryManager.h"
+#include "../MemoryManager/ProcessDebugger.h"
 
 #include <memory>
 #include <vector>
@@ -28,11 +34,25 @@ private:
 	void RenderStructSection();
 	void HandleAttachRequests();
 	void Rendertables();
+	void RenderDisasmSection();
+	void RenderDisasmViews();
+	void ClearDisasm();
+	void RenderTraceViews();
+	void HandleSymbolRequests();
+	void ApplySavedLabels();
 
 	AnalyserState state;
 	TableStore store;
 	std::unique_ptr<MemoryManager> memory;
 	std::vector<std::unique_ptr<StructTable>> tables;
 	int nextTableId = 0;
+	std::vector<std::unique_ptr<DisasmView>> disasmViews;
+	int nextDisasmId = 0;
+	std::vector<ModuleInfo> modules;
+	std::vector<disasm::PeSection> sections;
+	std::unique_ptr<disasm::SymbolResolver> symbols;
+	std::unique_ptr<ProcessDebugger> debugger;
+	std::vector<std::unique_ptr<TraceView>> traceViews;
+	int nextTraceId = 0;
 };
 }

@@ -64,9 +64,32 @@ uintptr_t MemoryManager::GetModuleBaseAddress(DWORD processId, const wchar_t* mo
 	return 0;
 }
 
+std::vector<ModuleInfo> MemoryManager::EnumerateModules() const
+{
+	std::vector<ModuleInfo> modules;
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processId);
+	if (hSnapshot == INVALID_HANDLE_VALUE) {
+		return modules;
+	}
+	MODULEENTRY32W moduleEntry;
+	moduleEntry.dwSize = sizeof(MODULEENTRY32W);
+	if (Module32FirstW(hSnapshot, &moduleEntry)) {
+		do {
+			ModuleInfo info;
+			info.name = moduleEntry.szModule;
+			info.path = moduleEntry.szExePath;
+			info.base = reinterpret_cast<uintptr_t>(moduleEntry.modBaseAddr);
+			info.size = moduleEntry.modBaseSize;
+			modules.push_back(std::move(info));
+		} while (Module32NextW(hSnapshot, &moduleEntry));
+	}
+	CloseHandle(hSnapshot);
+	return modules;
+}
+
 HANDLE MemoryManager::GetProcessHandle(DWORD processId)
 {
-	HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION, FALSE, processId);
+	HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION, FALSE, processId);
 	if (hProcess == NULL) {
 		throw std::runtime_error("Failed to open process handle.");
 	}

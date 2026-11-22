@@ -1,0 +1,4 @@
+Zydis v4.1.1 (https://github.com/zyantific/zydis, tag v4.1.1) with bundled Zycore.
+MIT licensed - see LICENSE and zycore/LICENSE.
+Vendored include/ and src/ trees unmodified; compiled with ZYDIS_STATIC_BUILD / ZYCORE_STATIC_BUILD.
+Zycore API/ and ArgParse.c sources are not compiled (not required for decoding/formatting).

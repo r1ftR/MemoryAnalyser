@@ -27,6 +27,34 @@ struct SavedTable
 	std::vector<SavedField> fields;
 };
 
+struct SavedDisasm
+{
+	std::string name;
+	size_t pointerSize = 8;
+	// True: address is an offset from the module base.
+	bool relative = false;
+	uint64_t address = 0;
+};
+
+// Address saved as module name + offset so it survives restarts/ASLR.
+struct ModuleOffset
+{
+	std::string module;
+	uint64_t offset = 0;
+};
+
+struct SavedLabel
+{
+	ModuleOffset at;
+	std::string name;
+};
+
+struct SavedTrace
+{
+	std::string name;
+	std::vector<ModuleOffset> targets;
+};
+
 // All saved struct tables, stored in one plain-text file next to the exe.
 class TableStore
 {
@@ -41,11 +69,25 @@ public:
 	void Remove(size_t index);
 
 	const std::vector<SavedTable>& Tables() const { return tables; }
+
+	void UpsertDisasm(SavedDisasm view);
+	void RemoveDisasm(size_t index);
+	const std::vector<SavedDisasm>& DisasmViews() const { return disasmViews; }
+
+	void SetLabel(SavedLabel label); // empty name removes
+	const std::vector<SavedLabel>& Labels() const { return labels; }
+
+	void UpsertTrace(SavedTrace trace);
+	void RemoveTrace(size_t index);
+	const std::vector<SavedTrace>& Traces() const { return traces; }
 	const std::string& LastError() const { return lastError; }
 
 private:
 	std::wstring path;
 	std::vector<SavedTable> tables;
+	std::vector<SavedDisasm> disasmViews;
+	std::vector<SavedLabel> labels;
+	std::vector<SavedTrace> traces;
 	std::string lastError;
 };
 }

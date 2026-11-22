@@ -18,6 +18,18 @@ struct StructOpenRequest
 	std::optional<SavedTable> layout;
 };
 
+struct DisasmOpenRequest
+{
+	uintptr_t address = 0;
+	std::string name;
+};
+
+struct LabelRequest
+{
+	uintptr_t address = 0;
+	std::string name; // empty = remove
+};
+
 struct AttachState
 {
 	char processName[128] = "notepad.exe";
@@ -45,5 +57,22 @@ struct AnalyserState
 	int selectedSaved = -1;
 	bool openSavedAtBase = false;
 	std::vector<SavedTable> saveRequests;
+
+	char disasmAddress[64] = "+0x1000";
+	int selectedModule = -1;
+	int selectedSection = -1;
+	int selectedSavedDisasm = -1;
+	std::vector<DisasmOpenRequest> disasmOpenRequests;
+	std::vector<SavedDisasm> disasmSaveRequests;
+	std::vector<LabelRequest> labelRequests;
+	// Addresses the user asked to trace from a disassembly window.
+	std::vector<uintptr_t> traceRequests;
+	// Addresses a trace window asked to open in disassembly.
+	std::vector<uintptr_t> disasmGotoRequests;
+	std::vector<SavedTrace> traceSaveRequests;
+	int selectedSavedTrace = -1;
+	bool openTraceRequested = false;
+	bool startDebuggerRequested = false;
+	bool stopDebuggerRequested = false;
 };
 }

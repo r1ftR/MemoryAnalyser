@@ -3,7 +3,15 @@
 #include <tlhelp32.h>
 #include <vector>
 #include <cstdint>
+#include <string>
 
+struct ModuleInfo
+{
+	std::wstring name;
+	std::wstring path;
+	uintptr_t base = 0;
+	size_t size = 0;
+};
 
 class MemoryManager
 {
@@ -20,10 +28,13 @@ public:
 
 	uintptr_t GetBaseAddress() const { return moduleBaseAddress; }
 	DWORD GetAttachedProcessId() const { return processId; }
+	HANDLE GetNativeHandle() const { return hProcess; }
 
 	DWORD GetProcessId(const wchar_t* processName);
 	uintptr_t GetModuleBaseAddress(DWORD processId, const wchar_t* moduleName);
 	HANDLE GetProcessHandle(DWORD processId);
+
+	std::vector<ModuleInfo> EnumerateModules() const;
 
 	bool readMemory(uintptr_t address, void* buffer, size_t size);
 	bool writeMemory(uintptr_t address, const void* buffer, size_t size);
