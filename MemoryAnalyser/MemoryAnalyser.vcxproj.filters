@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Analyser"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a01}</UniqueIdentifier></Filter><Filter Include="Analyser\Format"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a02}</UniqueIdentifier></Filter><Filter Include="Analyser\StructView"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a03}</UniqueIdentifier></Filter><Filter Include="MemoryManager">
+    <Filter Include="Analyser"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a01}</UniqueIdentifier></Filter><Filter Include="Analyser\Format"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a02}</UniqueIdentifier></Filter><Filter Include="Analyser\StructTable"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a03}</UniqueIdentifier></Filter><Filter Include="Analyser\Storage"><UniqueIdentifier>{3d1f7a20-91b4-4c6e-8a52-0b7e4f1c9a04}</UniqueIdentifier></Filter><Filter Include="MemoryManager">
       <UniqueIdentifier>{e1a2b3c4-5d6e-4f70-8192-a3b4c5d6e7f8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Third-Party">
@@ -60,8 +60,8 @@
       <Filter>MemoryManager</Filter>
     </ClCompile>
     <ClCompile Include="analyser\Format\AddressParse.cpp"><Filter>Analyser\Format</Filter>
-    </ClCompile><ClCompile Include="analyser\AnalyserModule.cpp"><Filter>Analyser</Filter></ClCompile>
-    <ClCompile Include="analyser\StructView\StructViewPanel.cpp"><Filter>Analyser\StructView</Filter>
+    </ClCompile><ClCompile Include="analyser\Format\TypeDetect.cpp"><Filter>Analyser\Format</Filter></ClCompile><ClCompile Include="analyser\Storage\TableStore.cpp"><Filter>Analyser\Storage</Filter></ClCompile><ClCompile Include="analyser\AnalyserModule.cpp"><Filter>Analyser</Filter></ClCompile>
+    <ClCompile Include="analyser\StructTable\StructTable.cpp"><Filter>Analyser\StructTable</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
@@ -85,9 +85,9 @@
     </ClInclude>
     <ClInclude Include="analyser\Format\AddressParse.h"><Filter>Analyser\Format</Filter>
     </ClInclude>
-    <ClInclude Include="analyser\Format\FieldTypes.h"><Filter>Analyser\Format</Filter></ClInclude><ClInclude Include="analyser\AnalyserModule.h"><Filter>Analyser</Filter></ClInclude><ClInclude Include="analyser\AnalyserState.h"><Filter>Analyser</Filter></ClInclude><ClInclude Include="app\AppModule.h"><Filter>Header Files</Filter>
+    <ClInclude Include="analyser\Format\FieldTypes.h"><Filter>Analyser\Format</Filter></ClInclude><ClInclude Include="analyser\AnalyserModule.h"><Filter>Analyser</Filter></ClInclude><ClInclude Include="analyser\Format\TypeDetect.h"><Filter>Analyser\Format</Filter></ClInclude><ClInclude Include="analyser\Storage\TableStore.h"><Filter>Analyser\Storage</Filter></ClInclude><ClInclude Include="analyser\AnalyserState.h"><Filter>Analyser</Filter></ClInclude><ClInclude Include="app\AppModule.h"><Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="analyser\StructView\StructViewPanel.h"><Filter>Analyser\StructView</Filter>
+    <ClInclude Include="analyser\StructTable\StructTable.h"><Filter>Analyser\StructTable</Filter>
     </ClInclude>
     <ClInclude Include="app\Application.h">
       <Filter>Header Files</Filter>

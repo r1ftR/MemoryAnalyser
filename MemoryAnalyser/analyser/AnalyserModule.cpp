@@ -27,7 +27,10 @@ std::wstring ToWide(const char* text)
 }
 }
 
-AnalyserModule::AnalyserModule() = default;
+AnalyserModule::AnalyserModule()
+{
+	store.Load();
+}
 AnalyserModule::~AnalyserModule() = default;
 
 void AnalyserModule::ConfigureWindow(platform::WindowConfig& config)
@@ -41,6 +44,10 @@ void AnalyserModule::RenderTabs(ui::UiState&)
 	if (ImGui::BeginTabItem("Memory"))
 	{
 		RenderAttachSection();
+		ImGui::EndTabItem();
+	}
+	if (ImGui::BeginTabItem("Struct Tables"))
+	{
 		RenderStructSection();
 		ImGui::EndTabItem();
 	}
@@ -50,14 +57,14 @@ void AnalyserModule::OnFrame(ui::UiState& ui)
 {
 	if (ui.showMainPanel)
 	{
-		RenderStructPanels();
+		Rendertables();
 	}
 	HandleAttachRequests();
 }
 
 void AnalyserModule::OnShutdown()
 {
-	structPanels.clear();
+	tables.clear();
 	memory.reset();
 }
 
@@ -97,7 +104,7 @@ void AnalyserModule::RenderAttachSection()
 
 void AnalyserModule::RenderStructSection()
 {
-	ImGui::SeparatorText("Struct Viewer");
+	ImGui::SeparatorText("Struct Tables");
 	ImGui::BeginDisabled(!state.attach.attached);
 
 	ImGui::InputText("Base", state.baseInput, sizeof(state.baseInput));
@@ -146,7 +153,7 @@ void AnalyserModule::RenderStructSection()
 	}
 
 	ImGui::BeginDisabled(!base);
-	if (ImGui::Button("Open struct"))
+	if (ImGui::Button("Open table"))
 	{
 		StructOpenRequest request;
 		request.base = *base;
@@ -156,6 +163,72 @@ void AnalyserModule::RenderStructSection()
 		}
 		request.label = path;
 		state.openRequests.push_back(std::move(request));
+	}
+	ImGui::SameLine();
+	ImGui::Checkbox("Auto-detect new tables", &state.autoDetectDefault);
+
+	const auto& saved = store.Tables();
+	if (state.selectedSaved >= static_cast<int>(saved.size()))
+	{
+		state.selectedSaved = -1;
+	}
+	const char* preview = state.selectedSaved >= 0 ? saved[state.selectedSaved].name.c_str() : "(none)";
+	ImGui::SetNextItemWidth(200);
+	if (ImGui::BeginCombo("Saved tables", preview))
+	{
+		for (int index = 0; index < static_cast<int>(saved.size()); ++index)
+		{
+			if (ImGui::Selectable(saved[index].name.c_str(), index == state.selectedSaved))
+			{
+				state.selectedSaved = index;
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	const bool hasSelection = state.selectedSaved >= 0;
+	ImGui::BeginDisabled(!hasSelection);
+	if (ImGui::Button("Open saved"))
+	{
+		const SavedTable& table = saved[state.selectedSaved];
+		StructOpenRequest request;
+		if (table.hasLocation && !state.openSavedAtBase)
+		{
+			request.base = static_cast<uintptr_t>(table.base) + (table.relative ? state.attach.moduleBase : 0);
+			request.offsets.assign(table.chain.begin(), table.chain.end());
+			request.label = table.name;
+		}
+		else
+		{
+			request.base = *base;
+			if (state.baseIsPointer)
+			{
+				request.offsets = { 0 };
+			}
+			request.label = path;
+		}
+		request.layout = table;
+		state.openRequests.push_back(std::move(request));
+	}
+	ImGui::SameLine();
+	ImGui::Checkbox("Use current Base instead", &state.openSavedAtBase);
+	ImGui::SameLine();
+	if (ImGui::Button("Delete"))
+	{
+		store.Remove(static_cast<size_t>(state.selectedSaved));
+		store.Save();
+		state.selectedSaved = -1;
+	}
+	ImGui::EndDisabled();
+
+	if (state.selectedSaved >= 0 && saved[state.selectedSaved].pointerSize != state.attach.PointerSize())
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Saved as %s, current target is %s",
+			saved[state.selectedSaved].pointerSize == 4 ? "x86" : "x64", state.attach.PointerSize() == 4 ? "x86" : "x64");
+	}
+	if (!store.LastError().empty())
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", store.LastError().c_str());
 	}
 	ImGui::EndDisabled();
 
@@ -168,7 +241,7 @@ void AnalyserModule::HandleAttachRequests()
 	if (attach.detachRequested)
 	{
 		attach.detachRequested = false;
-		structPanels.clear();
+		tables.clear();
 		memory.reset();
 		attach.attached = false;
 		attach.processId = 0;
@@ -198,24 +271,40 @@ void AnalyserModule::HandleAttachRequests()
 	}
 }
 
-void AnalyserModule::RenderStructPanels()
+void AnalyserModule::Rendertables()
 {
 	if (memory)
 	{
 		for (auto& request : state.openRequests)
 		{
-			structPanels.push_back(std::make_unique<StructViewPanel>(
-				nextPanelId++, *memory, state.attach.PointerSize(), std::move(request)));
+			tables.push_back(std::make_unique<StructTable>(
+				nextTableId++, *memory, state.attach.PointerSize(), std::move(request), state.autoDetectDefault));
 		}
 	}
 	state.openRequests.clear();
 
-	// Index loop: panels may queue new requests while rendering.
-	for (size_t index = 0; index < structPanels.size(); ++index)
+	// Index loop: tables may queue new requests while rendering.
+	for (size_t index = 0; index < tables.size(); ++index)
 	{
-		structPanels[index]->Render(state);
+		tables[index]->Render(state);
 	}
 
-	std::erase_if(structPanels, [](const auto& panel) { return !panel->IsOpen(); });
+	std::erase_if(tables, [](const auto& table) { return !table->IsOpen(); });
+
+	if (!state.saveRequests.empty())
+	{
+		for (auto& saved : state.saveRequests)
+		{
+			const uintptr_t moduleBase = state.attach.moduleBase;
+			if (saved.hasLocation && moduleBase != 0 && saved.base >= moduleBase && saved.base - moduleBase < 0x10000000)
+			{
+				saved.base -= moduleBase;
+				saved.relative = true;
+			}
+			store.Upsert(std::move(saved));
+		}
+		state.saveRequests.clear();
+		store.Save();
+	}
 }
 }

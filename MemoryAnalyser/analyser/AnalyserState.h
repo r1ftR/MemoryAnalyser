@@ -1,6 +1,9 @@
 #pragma once
 
+#include "Storage/TableStore.h"
+
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -11,6 +14,8 @@ struct StructOpenRequest
 	uintptr_t base = 0;
 	std::vector<uintptr_t> offsets;
 	std::string label;
+	// Set when opening a saved table: use this layout instead of the default rows.
+	std::optional<SavedTable> layout;
 };
 
 struct AttachState
@@ -35,5 +40,10 @@ struct AnalyserState
 	char baseInput[64] = "+0x0";
 	bool baseIsPointer = true;
 	std::vector<StructOpenRequest> openRequests;
+
+	bool autoDetectDefault = true;
+	int selectedSaved = -1;
+	bool openSavedAtBase = false;
+	std::vector<SavedTable> saveRequests;
 };
 }

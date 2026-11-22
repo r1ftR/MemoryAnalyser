@@ -26,3 +26,6 @@ imgui.ini
 # Visual Studio generated files
 *.VC.db
 *.VC.opendb
+
+# Saved struct tables
+tables.txt

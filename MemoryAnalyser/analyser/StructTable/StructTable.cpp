@@ -1,9 +1,11 @@
-#include "StructViewPanel.h"
+#include "StructTable.h"
 
+#include "../Format/TypeDetect.h"
 #include "../../MemoryManager/MemoryManager.h"
 #include "../../third_party/ImGui/imgui.h"
 
 #include <cstdio>
+#include <cstring>
 
 namespace analyser
 {
@@ -11,6 +13,8 @@ namespace
 {
 const ImVec4 kErrorColor(1.0f, 0.35f, 0.35f, 1.0f);
 const ImVec4 kPointerColor(0.45f, 0.8f, 1.0f, 1.0f);
+constexpr size_t kDetectSamples = 10;
+constexpr double kDetectInterval = 0.1;
 
 // Plain text has no ID, so BeginPopupContextItem can't attach to it.
 // Open the popup manually when the last drawn item is right-clicked.
@@ -23,13 +27,111 @@ void OpenPopupOnRightClick(const char* popupId)
 }
 }
 
-StructViewPanel::StructViewPanel(int id, MemoryManager& memory, size_t pointerSize, StructOpenRequest request)
+StructTable::StructTable(int id, MemoryManager& memory, size_t pointerSize, StructOpenRequest request, bool autoDetect)
 	: id(id), memory(memory), pointerSize(pointerSize), source(std::move(request))
 {
-	AddBytes(0x40);
+	if (source.layout && !source.layout->fields.empty())
+	{
+		for (const auto& saved : source.layout->fields)
+		{
+			Field field;
+			field.type = saved.type;
+			std::snprintf(field.name, sizeof(field.name), "%s", saved.name.c_str());
+			field.userSet = true;
+			fields.push_back(field);
+		}
+		std::snprintf(tableName, sizeof(tableName), "%s", source.layout->name.c_str());
+	}
+	else
+	{
+		AddBytes(0x40);
+		if (autoDetect)
+		{
+			StartDetect();
+		}
+	}
 }
 
-size_t StructViewPanel::TotalSize() const
+bool StructTable::ProbePointer(uint64_t target)
+{
+	for (const auto& [cached, ok] : probeCache)
+	{
+		if (cached == target)
+		{
+			return ok;
+		}
+	}
+	uint8_t byte = 0;
+	const bool ok = memory.readMemory(static_cast<uintptr_t>(target), &byte, 1);
+	if (probeCache.size() >= 256)
+	{
+		probeCache.erase(probeCache.begin());
+	}
+	probeCache.emplace_back(target, ok);
+	return ok;
+}
+
+void StructTable::StartDetect()
+{
+	detecting = true;
+	detectSamples.clear();
+	probeCache.clear();
+	lastSample = -1.0;
+}
+
+void StructTable::CollectDetectSample(double now)
+{
+	if (!detecting || !chainOk || now - lastSample < kDetectInterval)
+	{
+		return;
+	}
+	lastSample = now;
+	detectSamples.push_back(buffer);
+	if (detectSamples.size() >= kDetectSamples)
+	{
+		ApplyDetect();
+		detecting = false;
+		detectSamples.clear();
+		lastRefresh = -1.0;
+	}
+}
+
+void StructTable::ApplyDetect()
+{
+	const PointerProbe probe = [this](uint64_t target) { return ProbePointer(target); };
+
+	// Rebuild each run of untouched rows from the guess; user-set rows stay as they are.
+	std::vector<Field> rebuilt;
+	size_t offset = 0;
+	size_t index = 0;
+	while (index < fields.size())
+	{
+		if (fields[index].userSet)
+		{
+			rebuilt.push_back(fields[index]);
+			offset += FieldSize(fields[index].type, pointerSize);
+			++index;
+			continue;
+		}
+
+		const size_t runStart = offset;
+		while (index < fields.size() && !fields[index].userSet)
+		{
+			offset += FieldSize(fields[index].type, pointerSize);
+			++index;
+		}
+
+		for (const FieldType type : DetectRange(detectSamples, runStart, offset, pointerSize, probe))
+		{
+			Field field;
+			field.type = type;
+			rebuilt.push_back(field);
+		}
+	}
+	fields = std::move(rebuilt);
+}
+
+size_t StructTable::TotalSize() const
 {
 	size_t size = 0;
 	for (const auto& field : fields)
@@ -39,7 +141,7 @@ size_t StructViewPanel::TotalSize() const
 	return size;
 }
 
-void StructViewPanel::AddBytes(size_t count)
+void StructTable::AddBytes(size_t count)
 {
 	const size_t rowSize = FieldSize(DefaultFieldType(pointerSize), pointerSize);
 	for (size_t added = 0; added < count; added += rowSize)
@@ -51,7 +153,7 @@ void StructViewPanel::AddBytes(size_t count)
 	lastRefresh = -1.0;
 }
 
-void StructViewPanel::InsertPadding(size_t position, size_t size)
+void StructTable::InsertPadding(size_t position, size_t size)
 {
 	// Fill the gap with the largest hex fields that fit so offsets after it stay the same.
 	while (size > 0)
@@ -66,7 +168,7 @@ void StructViewPanel::InsertPadding(size_t position, size_t size)
 	}
 }
 
-void StructViewPanel::SetFieldType(size_t index, FieldType newType)
+void StructTable::SetFieldType(size_t index, FieldType newType)
 {
 	const size_t oldSize = FieldSize(fields[index].type, pointerSize);
 	const size_t newSize = FieldSize(newType, pointerSize);
@@ -98,7 +200,7 @@ void StructViewPanel::SetFieldType(size_t index, FieldType newType)
 	lastRefresh = -1.0;
 }
 
-void StructViewPanel::Refresh()
+void StructTable::Refresh()
 {
 	if (source.offsets.empty())
 	{
@@ -119,20 +221,24 @@ void StructViewPanel::Refresh()
 		{
 			field.readOk = false;
 		}
+		readsOk = 0;
 		return;
 	}
 
 	const bool wholeOk = memory.readMemory(address, buffer.data(), buffer.size());
 	size_t offset = 0;
+	readsOk = 0;
 	for (auto& field : fields)
 	{
 		const size_t size = FieldSize(field.type, pointerSize);
 		field.readOk = wholeOk || memory.readMemory(address + offset, buffer.data() + offset, size);
+		readsOk += field.readOk ? 1 : 0;
 		offset += size;
 	}
+	lastReadTime = ImGui::GetTime();
 }
 
-void StructViewPanel::OpenPointer(AnalyserState& state, size_t offset)
+void StructTable::OpenPointer(AnalyserState& state, size_t offset)
 {
 	// Keep the full chain so the child window follows the pointer live.
 	StructOpenRequest child;
@@ -154,7 +260,7 @@ void StructViewPanel::OpenPointer(AnalyserState& state, size_t offset)
 	state.openRequests.push_back(std::move(child));
 }
 
-void StructViewPanel::RenderValuePopup(AnalyserState& state, Field& field, size_t offset, const uint8_t* data)
+void StructTable::RenderValuePopup(AnalyserState& state, Field& field, size_t offset, const uint8_t* data)
 {
 	if (ImGui::IsWindowAppearing())
 	{
@@ -247,8 +353,46 @@ void StructViewPanel::RenderValuePopup(AnalyserState& state, Field& field, size_
 	}
 }
 
-void StructViewPanel::RenderStructOptions()
+void StructTable::RenderStructOptions(AnalyserState& state)
 {
+	ImGui::SetNextItemWidth(180);
+	ImGui::InputTextWithHint("##tablename", "Table name", tableName, sizeof(tableName));
+	ImGui::SameLine();
+	ImGui::BeginDisabled(tableName[0] == '\0');
+	if (ImGui::Button("Save"))
+	{
+		SavedTable saved;
+		saved.name = tableName;
+		saved.pointerSize = pointerSize;
+		saved.hasLocation = true;
+		saved.base = source.base;
+		saved.chain.assign(source.offsets.begin(), source.offsets.end());
+		for (const auto& field : fields)
+		{
+			saved.fields.push_back({ field.type, field.name });
+		}
+		state.saveRequests.push_back(std::move(saved));
+		saveStatus = "Saved";
+	}
+	ImGui::EndDisabled();
+	if (!saveStatus.empty())
+	{
+		ImGui::SameLine();
+		ImGui::TextDisabled("%s", saveStatus.c_str());
+	}
+	ImGui::SameLine();
+	ImGui::BeginDisabled(detecting);
+	if (ImGui::Button("Detect types"))
+	{
+		StartDetect();
+	}
+	ImGui::EndDisabled();
+	if (detecting)
+	{
+		ImGui::SameLine();
+		ImGui::TextColored(kPointerColor, "Detecting... %zu/%zu", detectSamples.size(), kDetectSamples);
+	}
+
 	ImGui::Checkbox("Pause", &paused);
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(120);
@@ -266,7 +410,7 @@ void StructViewPanel::RenderStructOptions()
 	}
 }
 
-void StructViewPanel::RenderRow(AnalyserState& state, size_t index, size_t offset, bool& layoutChanged)
+void StructTable::RenderRow(AnalyserState& state, size_t index, size_t offset, bool& layoutChanged)
 {
 	Field& field = fields[index];
 	const size_t size = FieldSize(field.type, pointerSize);
@@ -309,6 +453,7 @@ void StructViewPanel::RenderRow(AnalyserState& state, size_t index, size_t offse
 			if (ImGui::Selectable(FieldTypeNames()[typeIndex], type == field.type))
 			{
 				SetFieldType(index, type);
+				fields[index].userSet = true;
 				layoutChanged = true;
 			}
 		}
@@ -344,6 +489,10 @@ void StructViewPanel::RenderRow(AnalyserState& state, size_t index, size_t offse
 		{
 			ImGui::CloseCurrentPopup();
 		}
+		if (ImGui::IsItemEdited())
+		{
+			field.userSet = true;
+		}
 		ImGui::EndPopup();
 	}
 
@@ -371,21 +520,24 @@ void StructViewPanel::RenderRow(AnalyserState& state, size_t index, size_t offse
 	ImGui::PopID();
 }
 
-void StructViewPanel::Render(AnalyserState& state)
+void StructTable::Render(AnalyserState& state)
 {
 	// Hold the values still while a value is being edited.
 	const bool wasEditing = editing;
 	editing = false;
 
 	const double now = ImGui::GetTime();
-	if (lastRefresh < 0.0 || (!paused && !wasEditing && (now - lastRefresh) * 1000.0 >= refreshMs))
+	// While detecting, keep reading even if paused/editing so samples cover real changes.
+	const double interval = detecting ? kDetectInterval : refreshMs / 1000.0;
+	if (lastRefresh < 0.0 || ((detecting || (!paused && !wasEditing)) && now - lastRefresh >= interval))
 	{
 		Refresh();
 		lastRefresh = now;
+		CollectDetectSample(now);
 	}
 
 	char title[320];
-	std::snprintf(title, sizeof(title), "Struct: %s###StructView%d", source.label.c_str(), id);
+	std::snprintf(title, sizeof(title), "Table: %s###StructTable%d", tableName[0] != '\0' ? tableName : source.label.c_str(), id);
 
 	ImGui::SetNextWindowSize(ImVec2(620, 480), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin(title, &open))
@@ -404,7 +556,16 @@ void StructViewPanel::Render(AnalyserState& state)
 	}
 	ImGui::SameLine();
 	ImGui::TextDisabled("%zu bytes, %s", TotalSize(), pointerSize == 4 ? "x86" : "x64");
-	RenderStructOptions();
+	ImGui::SameLine();
+	if (lastReadTime >= 0.0 && readsOk == fields.size())
+	{
+		ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "live (%.1fs)", now - lastReadTime);
+	}
+	else
+	{
+		ImGui::TextColored(kErrorColor, "%zu/%zu rows readable", readsOk, fields.size());
+	}
+	RenderStructOptions(state);
 	ImGui::Separator();
 
 	if (ImGui::BeginChild("Rows", ImVec2(0, 0), ImGuiChildFlags_None))
