@@ -3,6 +3,7 @@
 
 #include "../Format/AddressParse.h"
 #include "../../MemoryManager/MemoryManager.h"
+#include "../../ui/Theme.h"
 #include "../../third_party/ImGui/imgui.h"
 
 #include <cstdio>
@@ -15,8 +16,6 @@ namespace
 constexpr size_t kReadSize = 0x1000;
 constexpr size_t kChunk = 0x200;
 constexpr size_t kMaxLines = 2000;
-
-const ImVec4 kLabelColor(0.55f, 0.95f, 0.55f, 1.0f);
 }
 
 DisasmView::DisasmView(int id, MemoryManager& memory, size_t pointerSize, DisasmOpenRequest request)
@@ -284,7 +283,7 @@ void DisasmView::Render(AnalyserState& state, disasm::SymbolResolver* symbols)
 	if (!readOk)
 	{
 		ImGui::SameLine();
-		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "unreadable");
+		ImGui::TextColored(ui::GetTheme().error, "unreadable");
 	}
 
 	ImGui::Checkbox("Show bytes", &showBytes);
@@ -327,7 +326,7 @@ void DisasmView::Render(AnalyserState& state, disasm::SymbolResolver* symbols)
 				const auto& line = lines[row.line];
 				if (row.isLabel)
 				{
-					ImGui::TextColored(kLabelColor, "%s:", row.label.c_str());
+					ImGui::TextColored(ui::GetTheme().success, "%s:", row.label.c_str());
 					continue;
 				}
 
@@ -350,19 +349,19 @@ void DisasmView::Render(AnalyserState& state, disasm::SymbolResolver* symbols)
 				ImVec4 color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
 				if (!line.valid)
 				{
-					color = ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
+					color = ui::GetTheme().muted;
 				}
 				else if (line.flow == disasm::FlowKind::Call)
 				{
-					color = ImVec4(0.4f, 0.8f, 1.0f, 1.0f);
+					color = ui::GetTheme().accent;
 				}
 				else if (line.flow == disasm::FlowKind::Jump || line.flow == disasm::FlowKind::CondJump)
 				{
-					color = ImVec4(1.0f, 0.8f, 0.4f, 1.0f);
+					color = ui::GetTheme().warning;
 				}
 				else if (line.flow == disasm::FlowKind::Ret)
 				{
-					color = ImVec4(1.0f, 0.45f, 0.45f, 1.0f);
+					color = ui::GetTheme().error;
 				}
 
 				uintptr_t target = 0;

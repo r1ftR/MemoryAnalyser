@@ -2,6 +2,7 @@
 
 #include "../app/AppModule.h"
 #include "AnalyserState.h"
+#include "Injector/Injector.h"
 #include "StructTable/StructTable.h"
 #include "Disasm/DisasmView.h"
 #include "Disasm/Pe.h"
@@ -32,6 +33,7 @@ public:
 
 private:
 	void RenderAttachSection();
+	void RefreshModules();
 	void RenderStructSection();
 	void HandleAttachRequests();
 	void Rendertables();
@@ -46,6 +48,7 @@ private:
 	AnalyserState state;
 	TableStore store;
 	std::unique_ptr<MemoryManager> memory;
+	Injector injector;
 	std::vector<std::unique_ptr<StructTable>> tables;
 	int nextTableId = 0;
 	std::vector<std::unique_ptr<DisasmView>> disasmViews;

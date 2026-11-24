@@ -2,6 +2,7 @@
 
 #include "../Format/TypeDetect.h"
 #include "../../MemoryManager/MemoryManager.h"
+#include "../../ui/Theme.h"
 #include "../../third_party/ImGui/imgui.h"
 
 #include <cstdio>
@@ -11,8 +12,6 @@ namespace analyser
 {
 namespace
 {
-const ImVec4 kErrorColor(1.0f, 0.35f, 0.35f, 1.0f);
-const ImVec4 kPointerColor(0.45f, 0.8f, 1.0f, 1.0f);
 constexpr size_t kDetectSamples = 10;
 constexpr double kDetectInterval = 0.1;
 
@@ -319,7 +318,7 @@ void StructTable::RenderValuePopup(AnalyserState& state, Field& field, size_t of
 	}
 	else if (editBuffer[0] != '\0')
 	{
-		ImGui::TextColored(kErrorColor, "%s", parseError.c_str());
+		ImGui::TextColored(ui::GetTheme().error, "%s", parseError.c_str());
 	}
 
 	ImGui::BeginDisabled(!parsed || !chainOk);
@@ -344,7 +343,7 @@ void StructTable::RenderValuePopup(AnalyserState& state, Field& field, size_t of
 		ImGui::SameLine();
 		if (editStatusError)
 		{
-			ImGui::TextColored(kErrorColor, "%s", editStatus.c_str());
+			ImGui::TextColored(ui::GetTheme().error, "%s", editStatus.c_str());
 		}
 		else
 		{
@@ -390,7 +389,7 @@ void StructTable::RenderStructOptions(AnalyserState& state)
 	if (detecting)
 	{
 		ImGui::SameLine();
-		ImGui::TextColored(kPointerColor, "Detecting... %zu/%zu", detectSamples.size(), kDetectSamples);
+		ImGui::TextColored(ui::GetTheme().accent, "Detecting... %zu/%zu", detectSamples.size(), kDetectSamples);
 	}
 
 	ImGui::Checkbox("Pause", &paused);
@@ -441,7 +440,7 @@ void StructTable::RenderRow(AnalyserState& state, size_t index, size_t offset, b
 
 	// Type (right-click to change).
 	ImGui::SameLine(lineStart + typeColumn);
-	ImGui::TextColored(ImVec4(0.6f, 0.85f, 0.6f, 1.0f), "%s", FieldTypeNames()[static_cast<int>(field.type)]);
+	ImGui::TextColored(ui::GetTheme().success, "%s", FieldTypeNames()[static_cast<int>(field.type)]);
 	OpenPopupOnRightClick("TypePopup");
 	if (ImGui::BeginPopup("TypePopup"))
 	{
@@ -500,11 +499,11 @@ void StructTable::RenderRow(AnalyserState& state, size_t index, size_t offset, b
 	ImGui::SameLine(lineStart + valueColumn);
 	if (data == nullptr)
 	{
-		ImGui::TextColored(kErrorColor, "??");
+		ImGui::TextColored(ui::GetTheme().error, "??");
 	}
 	else if (field.type == FieldType::Pointer)
 	{
-		ImGui::TextColored(kPointerColor, "%s", FormatField(field.type, data, pointerSize, field.hexDisplay).c_str());
+		ImGui::TextColored(ui::GetTheme().accent, "%s", FormatField(field.type, data, pointerSize, field.hexDisplay).c_str());
 	}
 	else
 	{
@@ -552,18 +551,18 @@ void StructTable::Render(AnalyserState& state)
 	}
 	else
 	{
-		ImGui::TextColored(kErrorColor, "Pointer chain could not be resolved");
+		ImGui::TextColored(ui::GetTheme().error, "Pointer chain could not be resolved");
 	}
 	ImGui::SameLine();
 	ImGui::TextDisabled("%zu bytes, %s", TotalSize(), pointerSize == 4 ? "x86" : "x64");
 	ImGui::SameLine();
 	if (lastReadTime >= 0.0 && readsOk == fields.size())
 	{
-		ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "live (%.1fs)", now - lastReadTime);
+		ImGui::TextColored(ui::GetTheme().success, "live (%.1fs)", now - lastReadTime);
 	}
 	else
 	{
-		ImGui::TextColored(kErrorColor, "%zu/%zu rows readable", readsOk, fields.size());
+		ImGui::TextColored(ui::GetTheme().error, "%zu/%zu rows readable", readsOk, fields.size());
 	}
 	RenderStructOptions(state);
 	ImGui::Separator();

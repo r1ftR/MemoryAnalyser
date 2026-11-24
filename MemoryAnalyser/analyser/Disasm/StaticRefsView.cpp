@@ -3,6 +3,7 @@
 
 #include "../Format/AddressParse.h"
 #include "../../MemoryManager/MemoryManager.h"
+#include "../../ui/Theme.h"
 #include "../../third_party/ImGui/imgui.h"
 
 #include <cstdio>
@@ -93,7 +94,7 @@ void StaticRefsView::RenderLocatorsSection(AnalyserState& state, MemoryManager& 
 		const auto& loc = report.locators[i];
 		ImGui::PushID(static_cast<int>(i));
 
-		ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.0f, 1.0f), "[%s]", LocatorKindLabel(loc->Kind()));
+		ImGui::TextColored(ui::GetTheme().accent, "[%s]", LocatorKindLabel(loc->Kind()));
 		ImGui::SameLine();
 		const std::string desc = loc->Describe();
 		ImGui::TextUnformatted(desc.c_str());
@@ -103,11 +104,11 @@ void StaticRefsView::RenderLocatorsSection(AnalyserState& state, MemoryManager& 
 			ImGui::SameLine();
 			if (report.signatureUnique)
 			{
-				ImGui::TextColored(ImVec4(0.45f, 1.0f, 0.45f, 1.0f), "(unique)");
+				ImGui::TextColored(ui::GetTheme().success, "(unique)");
 			}
 			else
 			{
-				ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.35f, 1.0f), "(%zu matches)", report.signatureMatchCount);
+				ImGui::TextColored(ui::GetTheme().warning, "(%zu matches)", report.signatureMatchCount);
 			}
 		}
 
@@ -408,7 +409,7 @@ void StaticRefsView::Render(AnalyserState& state, MemoryManager& memory, disasm:
 	if (busy)
 	{
 		ImGui::SameLine();
-		ImGui::TextColored(ImVec4(0.95f, 0.85f, 0.35f, 1.0f), "%s", finder.ProgressText().c_str());
+		ImGui::TextColored(ui::GetTheme().warning, "%s", finder.ProgressText().c_str());
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Cancel"))
 		{

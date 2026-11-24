@@ -70,6 +70,11 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <AdditionalIncludeDirectories>third_party\ImGui;third_party\Zydis\include;third_party\Zydis\src;third_party\Zydis\zycore\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -147,7 +152,12 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="analyser\Injector\Injector.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MemoryManager\LibraryLoader.cpp" />
+    <ClCompile Include="MemoryManager\LibraryLoaderHelper.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="MemoryManager\MemoryManager.cpp" />
     <ClCompile Include="MemoryManager\PatternScanner.cpp" />
     <ClCompile Include="analyser\Format\AddressParse.cpp" />
@@ -221,7 +231,14 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="analyser\Injector\Injector.h" />
     <ClInclude Include="app\Application.h" />
+    <ClInclude Include="MemoryManager\LibraryLoader.h" />
+    <ClInclude Include="MemoryManager\LibraryLoaderCommon.inl" />
+    <ClInclude Include="MemoryManager\LibraryLoaderValidation.inl" />
+    <ClInclude Include="MemoryManager\LibraryLoaderLocal.inl" />
+    <ClInclude Include="MemoryManager\LibraryLoaderHelperClient.inl" />
+    <ClInclude Include="MemoryManager\LibraryLoaderProtocol.h" />
     <ClInclude Include="MemoryManager\MemoryManager.h" />
     <ClInclude Include="analyser\Format\AddressParse.h" />
     <ClInclude Include="analyser\Format\FieldTypes.h" />
@@ -245,6 +262,7 @@
     <ClInclude Include="platform\Renderer.h" />
     <ClInclude Include="platform\WindowConfig.h" />
     <ClInclude Include="ui\MainPanel.h" />
+    <ClInclude Include="ui\Theme.h" />
     <ClInclude Include="ui\UiPanel.h" />
     <ClInclude Include="ui\UiState.h" />
     <ClInclude Include="platform\Win32Window.h" />
@@ -254,7 +272,13 @@
     <None Include=".gitignore" />
     <None Include="analyser\Format\TypeDetect.cpp.new" />
     <None Include="analyser\Format\TypeDetect.h.new" />
+    <None Include="analyser\Injector.md" />
+    <None Include="MemoryManager\LibraryLoaderHelper.md" />
   </ItemGroup>
+  <Target Name="BuildX86LibraryLoader" BeforeTargets="Build" Condition="'$(Platform)'=='x64'">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\MemoryManager\MemoryAnalyserLoader32.vcxproj" Targets="Build" Properties="Configuration=$(Configuration);Platform=Win32;OutDir=$(MSBuildProjectDirectory)\MemoryManager\build\$(Configuration)\;IntDir=$(MSBuildProjectDirectory)\MemoryManager\build\obj\$(Configuration)\" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\MemoryManager\build\$(Configuration)\MemoryAnalyserLoader32.exe" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

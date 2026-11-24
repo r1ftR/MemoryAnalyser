@@ -3,6 +3,7 @@
 
 #include "../Format/AddressParse.h"
 #include "../../MemoryManager/ProcessDebugger.h"
+#include "../../ui/Theme.h"
 #include "../../third_party/ImGui/imgui.h"
 
 #include <algorithm>
@@ -236,7 +237,7 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 	const bool running = debugger && debugger->IsRunning();
 	if (running)
 	{
-		ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Tracing");
+		ImGui::TextColored(ui::GetTheme().success, "Tracing");
 		ImGui::SameLine();
 		if (ImGui::Button("Stop debugger"))
 		{
@@ -245,7 +246,7 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 	}
 	else
 	{
-		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Debugger not attached");
+		ImGui::TextColored(ui::GetTheme().warning, "Debugger not attached");
 		ImGui::SameLine();
 		if (ImGui::Button("Start tracing"))
 		{
@@ -326,11 +327,11 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 		const std::string error = debugger->LastError();
 		if (!error.empty())
 		{
-			ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.45f, 1.0f), "%s", error.c_str());
+			ImGui::TextColored(ui::GetTheme().error, "%s", error.c_str());
 		}
 		if (debugger->DroppedHits() > 0)
 		{
-			ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%zu hits dropped (too many). Trace fewer hot functions.",
+			ImGui::TextColored(ui::GetTheme().warning, "%zu hits dropped (too many). Trace fewer hot functions.",
 				debugger->DroppedHits());
 		}
 	}
@@ -417,8 +418,10 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 				// Recently hit functions glow green, fading over two seconds.
 				const double age = stat.lastTick ? static_cast<double>(nowTick - stat.lastTick) / 1000.0 : 99.0;
 				const float glow = age < 2.0 ? static_cast<float>(1.0 - age / 2.0) : 0.0f;
-				const ImVec4 base = stat.count ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : ImVec4(0.55f, 0.55f, 0.55f, 1.0f);
-				const ImVec4 color(base.x + (0.4f - base.x) * glow, base.y + (1.0f - base.y) * glow, base.z + (0.4f - base.z) * glow, 1.0f);
+				const ImVec4 base = stat.count ? ImGui::GetStyleColorVec4(ImGuiCol_Text) : ui::GetTheme().muted;
+				const ImVec4 highlight = ui::GetTheme().success;
+				const ImVec4 color(base.x + (highlight.x - base.x) * glow, base.y + (highlight.y - base.y) * glow,
+					base.z + (highlight.z - base.z) * glow, base.w + (highlight.w - base.w) * glow);
 
 				char line[512];
 				std::snprintf(line, sizeof(line), "%10llu  %8.1f/s  tid %-6lu  %s",

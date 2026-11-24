@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+	<ProjectConfiguration Include="Debug|Win32"><Configuration>Debug</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+	<ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+	<VCProjectVersion>18.0</VCProjectVersion>
+	<Keyword>Win32Proj</Keyword>
+	<ProjectGuid>{E4F489AA-BFC7-4F2E-BE6D-DA9E63C13B31}</ProjectGuid>
+	<RootNamespace>MemoryAnalyserLoader32</RootNamespace>
+	<WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+	<ConfigurationType>Application</ConfigurationType>
+	<PlatformToolset>v145</PlatformToolset>
+	<CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration"><UseDebugLibraries>true</UseDebugLibraries></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration"><UseDebugLibraries>false</UseDebugLibraries><WholeProgramOptimization>true</WholeProgramOptimization></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+	<OutDir>$(MSBuildThisFileDirectory)build\$(Configuration)\</OutDir>
+	<IntDir>$(MSBuildThisFileDirectory)build\obj\$(Configuration)\</IntDir>
+	<TargetName>MemoryAnalyserLoader32</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+	<ClCompile>
+	  <WarningLevel>Level3</WarningLevel>
+	  <SDLCheck>true</SDLCheck>
+	  <ConformanceMode>true</ConformanceMode>
+	  <LanguageStandard>stdcpp20</LanguageStandard>
+	  <PreprocessorDefinitions>UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+	</ClCompile>
+	<Link><SubSystem>Console</SubSystem></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+	<ClCompile Include="LibraryLoader.cpp" />
+	<ClCompile Include="LibraryLoaderHelper.cpp" />
+	<ClInclude Include="LibraryLoader.h" />
+	<ClInclude Include="LibraryLoaderCommon.inl" />
+	<ClInclude Include="LibraryLoaderValidation.inl" />
+	<ClInclude Include="LibraryLoaderLocal.inl" />
+	<ClInclude Include="LibraryLoaderHelperClient.inl" />
+	<ClInclude Include="LibraryLoaderProtocol.h" />
+	<None Include="LibraryLoaderHelper.md" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

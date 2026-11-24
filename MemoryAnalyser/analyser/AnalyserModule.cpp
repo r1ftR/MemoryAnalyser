@@ -3,6 +3,7 @@
 #include "Format/AddressParse.h"
 #include "../MemoryManager/MemoryManager.h"
 #include "../third_party/ImGui/imgui.h"
+#include "../ui/Theme.h"
 
 #include <Windows.h>
 
@@ -51,6 +52,11 @@ void AnalyserModule::RenderTabs(ui::UiState&)
 		RenderStructSection();
 		ImGui::EndTabItem();
 	}
+	if (ImGui::BeginTabItem("Injector"))
+	{
+		injector.Render(state.attach, memory.get());
+		ImGui::EndTabItem();
+	}
 	if (ImGui::BeginTabItem("Disassembly"))
 	{
 		RenderDisasmSection();
@@ -69,10 +75,15 @@ void AnalyserModule::OnFrame(ui::UiState& ui)
 	}
 	HandleSymbolRequests();
 	HandleAttachRequests();
+	injector.Poll(memory.get(), [this]() {
+		RefreshModules();
+		return !modules.empty();
+	});
 }
 
 void AnalyserModule::OnShutdown()
 {
+	injector.OnShutdown();
 	tables.clear();
 	ClearDisasm();
 	memory.reset();
@@ -139,7 +150,7 @@ void AnalyserModule::RenderStructSection()
 	std::string path;
 	if (!base)
 	{
-		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Invalid base address");
+		ImGui::TextColored(ui::GetTheme().error, "Invalid base address");
 	}
 	else
 	{
@@ -233,12 +244,12 @@ void AnalyserModule::RenderStructSection()
 
 	if (state.selectedSaved >= 0 && saved[state.selectedSaved].pointerSize != state.attach.PointerSize())
 	{
-		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Saved as %s, current target is %s",
+		ImGui::TextColored(ui::GetTheme().warning, "Saved as %s, current target is %s",
 			saved[state.selectedSaved].pointerSize == 4 ? "x86" : "x64", state.attach.PointerSize() == 4 ? "x86" : "x64");
 	}
 	if (!store.LastError().empty())
 	{
-		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", store.LastError().c_str());
+		ImGui::TextColored(ui::GetTheme().error, "%s", store.LastError().c_str());
 	}
 	ImGui::EndDisabled();
 
@@ -251,6 +262,7 @@ void AnalyserModule::HandleAttachRequests()
 	if (attach.detachRequested)
 	{
 		attach.detachRequested = false;
+		injector.OnDetach();
 		tables.clear();
 		ClearDisasm();
 		memory.reset();
@@ -543,21 +555,24 @@ void AnalyserModule::ClearDisasm()
 	state.staticBatchScanRequests.clear();
 }
 
+void AnalyserModule::RefreshModules()
+{
+	modules = memory->EnumerateModules();
+	state.selectedModule = -1;
+	state.selectedSection = -1;
+	sections.clear();
+	// Trace windows hold resolver-independent addresses, so only symbols need rebuilding.
+	symbols = std::make_unique<disasm::SymbolResolver>(*memory, modules);
+	ApplySavedLabels();
+}
+
 void AnalyserModule::RenderDisasmSection()
 {
 	ImGui::SeparatorText("Disassembly");
 	ImGui::BeginDisabled(!state.attach.attached || !memory);
 
 	if (memory && ((modules.empty() && !symbols) || ImGui::Button("Refresh modules")))
-	{
-		modules = memory->EnumerateModules();
-		state.selectedModule = -1;
-		state.selectedSection = -1;
-		sections.clear();
-		// Trace windows hold resolver-independent addresses, so only symbols need rebuilding.
-		symbols = std::make_unique<disasm::SymbolResolver>(*memory, modules);
-		ApplySavedLabels();
-	}
+		RefreshModules();
 
 	char modulePreview[300] = "(select module)";
 	if (state.selectedModule >= 0 && state.selectedModule < static_cast<int>(modules.size()))
@@ -626,7 +641,7 @@ void AnalyserModule::RenderDisasmSection()
 	if (!address)
 	{
 		ImGui::SameLine();
-		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Invalid address");
+		ImGui::TextColored(ui::GetTheme().error, "Invalid address");
 	}
 
 	ImGui::SeparatorText("Saved views");
@@ -667,7 +682,7 @@ void AnalyserModule::RenderDisasmSection()
 	ImGui::EndDisabled();
 	if (state.selectedSavedDisasm >= 0 && saved[state.selectedSavedDisasm].pointerSize != state.attach.PointerSize())
 	{
-		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Saved as %s, current target is %s",
+		ImGui::TextColored(ui::GetTheme().warning, "Saved as %s, current target is %s",
 			saved[state.selectedSavedDisasm].pointerSize == 4 ? "x86" : "x64", state.attach.PointerSize() == 4 ? "x86" : "x64");
 	}
 
@@ -687,7 +702,7 @@ void AnalyserModule::RenderDisasmSection()
 	if (debugger && debugger->IsRunning())
 	{
 		ImGui::SameLine();
-		ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Debugger attached (%zu breakpoints)", debugger->BreakpointCount());
+		ImGui::TextColored(ui::GetTheme().success, "Debugger attached (%zu breakpoints)", debugger->BreakpointCount());
 	}
 
 	const auto& savedTraces = store.Traces();

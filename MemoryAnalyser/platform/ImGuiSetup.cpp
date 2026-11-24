@@ -1,5 +1,6 @@
 #include "ImGuiSetup.h"
 
+#include "../ui/Theme.h"
 #include "../third_party/ImGui/imgui.h"
 #include "../third_party/ImGui/backends/imgui_impl_win32.h"
 
@@ -15,7 +16,7 @@ bool ImGuiSetup::Initialize(HWND window)
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-	ImGui::StyleColorsDark();
+	ui::ApplyDefaultTheme();
 
 	if (!ImGui_ImplWin32_Init(window))
 	{
