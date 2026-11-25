@@ -2,6 +2,7 @@
 #include "Symbols.h"
 
 #include "../Format/AddressParse.h"
+#include "../Hooking/HookTarget.h"
 #include "../../MemoryManager/MemoryManager.h"
 #include "../../ui/Theme.h"
 #include "../../third_party/ImGui/imgui.h"
@@ -166,7 +167,7 @@ void StaticRefsView::RenderLocatorsSection(AnalyserState& state, MemoryManager& 
 			saved.name = saveNameInput[0] ? std::string(saveNameInput) : report.targetName;
 			saved.spec = loc->Serialize();
 			state.locatorSaveRequests.push_back(std::move(saved));
-			status = "Saved locator to tables.txt";
+			status = "Locator queued for saving";
 		}
 
 		ImGui::PopID();
@@ -374,6 +375,32 @@ void StaticRefsView::Render(AnalyserState& state, MemoryManager& memory, disasm:
 		reports = std::move(finished);
 		selectedReport = 0;
 		status = finder.ProgressText();
+		for (const auto& report : reports)
+		{
+			if (report.status == "Target memory is not readable")
+			{
+				status += "\nNot saved: " + report.targetName + ": " + report.status;
+				continue;
+			}
+			hooking::HookTarget target;
+			std::string error;
+			if (!hooking::ValidateHookTarget(memory, report, target, error))
+			{
+				status += "\nNot saved: " + report.targetName + ": " + error;
+				continue;
+			}
+			SavedFunction saved;
+			saved.target = std::move(target);
+			for (const auto& locator : report.locators)
+			{
+				if (locator->Kind() == LocatorKind::ModuleOffset)
+				{
+					saved.locatorSpec = locator->Serialize();
+					break;
+				}
+			}
+			state.functionSaveRequests.push_back(std::move(saved));
+		}
 	}
 
 	char title[96];
@@ -385,6 +412,7 @@ void StaticRefsView::Render(AnalyserState& state, MemoryManager& memory, disasm:
 		return;
 	}
 
+	if (!state.storageStatus.empty()) ImGui::TextColored(ui::GetTheme().error, "%s", state.storageStatus.c_str());
 	const bool busy = finder.IsRunning();
 	ImGui::BeginDisabled(busy);
 	ImGui::SetNextItemWidth(220);
@@ -462,6 +490,24 @@ void StaticRefsView::Render(AnalyserState& state, MemoryManager& memory, disasm:
 	const auto& active = reports[static_cast<size_t>(selectedReport)];
 	ImGui::Separator();
 	ImGui::Text("Target: %s  (0x%llX)", active.targetName.c_str(), static_cast<unsigned long long>(active.targetAddress));
+	const bool targetHovered = ImGui::IsItemHovered();
+	if (ImGui::BeginPopupContextItem("hookTarget"))
+	{
+		if (ImGui::MenuItem("Create hook..."))
+		{
+			hooking::HookTarget target;
+			if (hooking::ValidateHookTarget(memory, active, target, status))
+			{
+				state.hookRequest = std::move(target);
+				status = "Hook target selected; open the Hooking tab.";
+			}
+		}
+		ImGui::EndPopup();
+	}
+	if (targetHovered)
+	{
+		ImGui::SetTooltip("Right-click to create a hook project");
+	}
 	ImGui::SameLine();
 	if (ImGui::SmallButton("Open in Disasm"))
 	{

@@ -138,6 +138,26 @@ void TraceView::RenderPicker(AnalyserState& state, ProcessDebugger* debugger, di
 		}
 	}
 
+	if (ImGui::BeginCombo("Saved functions", "(add validated saved function)"))
+	{
+		for (size_t i = 0; i < state.savedFunctions.size(); ++i)
+		{
+			const auto& function = state.savedFunctions[i];
+			ImGui::PushID(static_cast<int>(i));
+			const auto& t = function.saved.target;
+			char label[512];
+			std::snprintf(label, sizeof(label), "%s (%s+0x%llX)%s", t.name.c_str(), t.moduleName.c_str(),
+				static_cast<unsigned long long>(t.rva), function.address ? "" : " [unavailable]");
+			if (ImGui::Selectable(label))
+			{
+				if (function.address) AddTarget(function.address, debugger);
+				else status = function.error.empty() ? "Saved function is not resolved" : function.error;
+			}
+			if (ImGui::IsItemHovered() && !function.error.empty()) ImGui::SetTooltip("%s", function.error.c_str());
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
 	if (!symbols)
 	{
 		return;
@@ -311,7 +331,7 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 			}
 		}
 		state.traceSaveRequests.push_back(std::move(saved));
-		status = "Saved";
+		status = "Trace queued for saving";
 	}
 	ImGui::EndDisabled();
 	ImGui::SameLine();
@@ -340,6 +360,8 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 		ImGui::TextDisabled("%s", status.c_str());
 	}
 
+	if (!state.storageStatus.empty()) ImGui::TextColored(ui::GetTheme().error, "%s", state.storageStatus.c_str());
+	if (!state.savedFunctionStatus.empty()) ImGui::TextWrapped("%s", state.savedFunctionStatus.c_str());
 	RenderPicker(state, debugger, symbols);
 
 	// Per-second rate, updated once per second.
@@ -379,6 +401,10 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 		{
 			std::string name = symbols->Describe(address);
 			stat.name = name.empty() ? std::string() : std::move(name);
+		}
+		for (const auto& function : state.savedFunctions)
+		{
+			if (function.address == address) { stat.name = function.saved.target.name; break; }
 		}
 		if (stat.name.empty())
 		{
@@ -423,10 +449,25 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 				const ImVec4 color(base.x + (highlight.x - base.x) * glow, base.y + (highlight.y - base.y) * glow,
 					base.z + (highlight.z - base.z) * glow, base.w + (highlight.w - base.w) * glow);
 
-				char line[512];
-				std::snprintf(line, sizeof(line), "%10llu  %8.1f/s  tid %-6lu  %s",
+				std::string relative = "(no module RVA)";
+				std::string module;
+				uint64_t rva = 0;
+				const SavedFunction* saved = nullptr;
+				for (const auto& function : state.savedFunctions)
+				{
+					if (function.address == entry.address) { saved = &function.saved; break; }
+				}
+				if (saved) { module = saved->target.moduleName; rva = saved->target.rva; }
+				if (saved || (symbols && symbols->ToModuleOffset(entry.address, module, rva)))
+				{
+					char offset[40];
+					std::snprintf(offset, sizeof(offset), "+0x%llX", static_cast<unsigned long long>(rva));
+					relative = module + offset;
+				}
+				char line[768];
+				std::snprintf(line, sizeof(line), "%10llu  %8.1f/s  tid %-6lu  0x%llX  %s  %s",
 					static_cast<unsigned long long>(stat.count), rates[entry.address],
-					static_cast<unsigned long>(stat.lastThread), stat.name.c_str());
+					static_cast<unsigned long>(stat.lastThread), static_cast<unsigned long long>(entry.address), relative.c_str(), stat.name.c_str());
 
 				ImGui::PushID(i);
 				ImGui::PushStyleColor(ImGuiCol_Text, color);
@@ -439,6 +480,7 @@ void TraceView::Render(AnalyserState& state, ProcessDebugger* debugger, disasm::
 				{
 					ImGui::TextDisabled("0x%llX", static_cast<unsigned long long>(entry.address));
 					ImGui::Separator();
+					if (saved && ImGui::MenuItem("Create hook from saved function...")) state.savedHookRequest = *saved;
 					if (ImGui::MenuItem("Find static references"))
 					{
 						state.staticScanRequests.push_back(entry.address);

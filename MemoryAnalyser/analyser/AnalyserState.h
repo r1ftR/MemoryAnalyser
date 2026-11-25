@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Storage/TableStore.h"
+#include "Hooking/HookTarget.h"
 
 #include <cstdint>
 #include <optional>
@@ -46,6 +47,13 @@ struct AttachState
 	size_t PointerSize() const { return architecture == 1 ? 4 : 8; }
 };
 
+struct ResolvedSavedFunction
+{
+	SavedFunction saved;
+	uintptr_t address = 0;
+	std::string error;
+};
+
 struct AnalyserState
 {
 	AttachState attach;
@@ -75,10 +83,18 @@ struct AnalyserState
 	bool startDebuggerRequested = false;
 	bool stopDebuggerRequested = false;
 
+	std::optional<hooking::HookTarget> hookRequest;
+	std::optional<SavedFunction> savedHookRequest;
 	bool openStaticRefsRequested = false;
 	std::vector<uintptr_t> staticScanRequests;
 	std::vector<std::vector<uintptr_t>> staticBatchScanRequests;
 	std::vector<SavedLocator> locatorSaveRequests;
+	std::vector<SavedFunction> functionSaveRequests;
+	std::vector<ResolvedSavedFunction> savedFunctions;
+	std::string storageStatus;
+	std::string savedFunctionStatus;
+	std::string locatorStatus;
+	int selectedSavedFunction = -1;
 	int selectedSavedLocator = -1;
 };
 }

@@ -153,8 +153,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="analyser\Injector\Injector.cpp" />
+    <ClCompile Include="analyser\Hooking\HookTarget.cpp" />
+    <ClCompile Include="analyser\Hooking\HookPanel.cpp" />
+    <ClCompile Include="analyser\Hooking\Project.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MemoryManager\LibraryLoader.cpp" />
+    <ClCompile Include="MemoryManager\RemoteExportCall.cpp" />
     <ClCompile Include="MemoryManager\LibraryLoaderHelper.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
@@ -176,6 +180,9 @@
     <ClCompile Include="MemoryManager\ProcessDebugger.cpp" />
     <ClCompile Include="app\Application.cpp" />
     <ClCompile Include="platform\ImGuiSetup.cpp" />
+    <ClCompile Include="tests\HookTargetTests.cpp"><ExcludedFromBuild>true</ExcludedFromBuild></ClCompile>
+    <ClCompile Include="tests\HookWorkflowTests.cpp"><ExcludedFromBuild>true</ExcludedFromBuild></ClCompile>
+    <ClCompile Include="tests\SavedFunctionTests.cpp"><ExcludedFromBuild>true</ExcludedFromBuild></ClCompile>
     <ClCompile Include="ui\MainPanel.cpp" />
     <ClCompile Include="platform\Win32Window.cpp" />
     <ClCompile Include="platform\Dx11Renderer.cpp" />
@@ -232,8 +239,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="analyser\Injector\Injector.h" />
+    <ClInclude Include="analyser\Hooking\HookTarget.h" />
+    <ClInclude Include="analyser\Hooking\HookPanel.h" />
+    <ClInclude Include="analyser\Hooking\Project.h" />
+    <ClInclude Include="analyser\Hooking\ProjectProtocol.h" />
     <ClInclude Include="app\Application.h" />
     <ClInclude Include="MemoryManager\LibraryLoader.h" />
+    <ClInclude Include="MemoryManager\RemoteExportCall.h" />
     <ClInclude Include="MemoryManager\LibraryLoaderCommon.inl" />
     <ClInclude Include="MemoryManager\LibraryLoaderValidation.inl" />
     <ClInclude Include="MemoryManager\LibraryLoaderLocal.inl" />
@@ -274,6 +286,9 @@
     <None Include="analyser\Format\TypeDetect.h.new" />
     <None Include="analyser\Injector.md" />
     <None Include="MemoryManager\LibraryLoaderHelper.md" />
+    <None Include="tests\HookTargetTests.vcxproj" />
+    <None Include="tests\HookWorkflowTests.vcxproj" />
+    <None Include="tests\SavedFunctionTests.vcxproj" />
   </ItemGroup>
   <Target Name="BuildX86LibraryLoader" BeforeTargets="Build" Condition="'$(Platform)'=='x64'">
     <MSBuild Projects="$(MSBuildProjectDirectory)\MemoryManager\MemoryAnalyserLoader32.vcxproj" Targets="Build" Properties="Configuration=$(Configuration);Platform=Win32;OutDir=$(MSBuildProjectDirectory)\MemoryManager\build\$(Configuration)\;IntDir=$(MSBuildProjectDirectory)\MemoryManager\build\obj\$(Configuration)\" />

@@ -175,10 +175,23 @@ int Run(HINSTANCE instance, AppModule& module)
 			SetMenuVisible(window, state, !state.showMainPanel);
 		}
 
-		// While hidden, sleep until Windows sends a new message.
 		if (!state.showMainPanel)
 		{
-			WaitMessage();
+			const unsigned interval = module.BackgroundFrameIntervalMs();
+			if (interval == 0)
+			{
+				WaitMessage();
+			}
+			else
+			{
+				module.OnFrame(state);
+				if (MsgWaitForMultipleObjectsEx(0, nullptr, interval, QS_ALLINPUT, MWMO_INPUTAVAILABLE) == WAIT_FAILED)
+				{
+					module.OnShutdown();
+					renderer.Shutdown();
+					return -1;
+				}
+			}
 			continue;
 		}
 

@@ -56,6 +56,9 @@
     <ClCompile Include="third_party\ImGui\backends\imgui_impl_win32.cpp">
       <Filter>Third-Party\ImGui\Backends</Filter>
     </ClCompile>
+    <ClCompile Include="MemoryManager\RemoteExportCall.cpp">
+      <Filter>MemoryManager</Filter>
+    </ClCompile>
     <ClCompile Include="MemoryManager\LibraryLoader.cpp">
       <Filter>MemoryManager</Filter>
     </ClCompile>
@@ -72,6 +75,15 @@
     <ClCompile Include="ui\MainPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="analyser\Hooking\HookTarget.cpp">
+      <Filter>Analyser</Filter>
+    </ClCompile>
+    <ClCompile Include="analyser\Hooking\HookPanel.cpp">
+      <Filter>Analyser</Filter>
+    </ClCompile>
+    <ClCompile Include="analyser\Hooking\Project.cpp">
+      <Filter>Analyser</Filter>
+    </ClCompile>
     <ClCompile Include="analyser\Injector\Injector.cpp">
       <Filter>Analyser</Filter>
     </ClCompile>
@@ -86,6 +98,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MemoryManager\RemoteExportCall.h">
+      <Filter>MemoryManager</Filter>
+    </ClInclude>
     <ClInclude Include="MemoryManager\LibraryLoader.h">
       <Filter>MemoryManager</Filter>
     </ClInclude>
@@ -121,6 +136,18 @@
     </ClInclude>
     <ClInclude Include="ui\Theme.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="analyser\Hooking\HookTarget.h">
+      <Filter>Analyser</Filter>
+    </ClInclude>
+    <ClInclude Include="analyser\Hooking\HookPanel.h">
+      <Filter>Analyser</Filter>
+    </ClInclude>
+    <ClInclude Include="analyser\Hooking\ProjectProtocol.h">
+      <Filter>Analyser</Filter>
+    </ClInclude>
+    <ClInclude Include="analyser\Hooking\Project.h">
+      <Filter>Analyser</Filter>
     </ClInclude>
     <ClInclude Include="analyser\Injector\Injector.h">
       <Filter>Analyser</Filter>

@@ -21,8 +21,12 @@ public:
 	// Called inside the main panel's tab bar, before the built-in tabs.
 	virtual void RenderTabs(ui::UiState&) {}
 
-	// Called every frame after the main panel. Draw extra windows here.
+	// Called every visible frame after the main panel; may also run while hidden
+	// when BackgroundFrameIntervalMs returns a nonzero interval.
 	virtual void OnFrame(ui::UiState&) {}
+
+	// Return zero to sleep until a window message while hidden.
+	virtual unsigned BackgroundFrameIntervalMs() const { return 0; }
 
 	// Called once before the renderer shuts down.
 	virtual void OnShutdown() {}

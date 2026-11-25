@@ -2,7 +2,10 @@
 
 #include <Windows.h>
 
+#include <algorithm>
 #include <cstdlib>
+#include <cstring>
+#include <utility>
 #include <fstream>
 #include <sstream>
 
@@ -49,6 +52,42 @@ bool ParseModuleOffset(const std::string& text, ModuleOffset& out)
 	return true;
 }
 
+std::string Encode(const void* data, size_t size)
+{
+	constexpr char digits[] = "0123456789ABCDEF";
+	std::string result;
+	const auto* bytes = static_cast<const unsigned char*>(data);
+	for (size_t i = 0; i < size; ++i) { result += digits[bytes[i] >> 4]; result += digits[bytes[i] & 15]; }
+	return result;
+}
+
+bool Decode(const std::string& text, std::string& result)
+{
+	if (text.size() % 2) return false;
+	auto digit = [](char c) -> int {
+		if (c >= '0' && c <= '9') return c - '0';
+		if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+		if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+		return -1;
+	};
+	result.clear();
+	for (size_t i = 0; i < text.size(); i += 2)
+	{
+		const int high = digit(text[i]), low = digit(text[i + 1]);
+		if (high < 0 || low < 0) return false;
+		result += static_cast<char>((high << 4) | low);
+	}
+	return true;
+}
+
+bool DecodeWide(const std::string& bytes, std::wstring& result)
+{
+	if (bytes.size() % sizeof(wchar_t)) return false;
+	result.resize(bytes.size() / sizeof(wchar_t));
+	if (!bytes.empty()) memcpy(result.data(), bytes.data(), bytes.size());
+	return result.find(L'\0') == std::wstring::npos;
+}
+
 bool ParseTypeName(const std::string& text, FieldType& type)
 {
 	for (int index = 0; index < static_cast<int>(FieldType::Count); ++index)
@@ -67,6 +106,10 @@ TableStore::TableStore() : path(DefaultPath())
 {
 }
 
+TableStore::TableStore(std::wstring storagePath) : path(std::move(storagePath))
+{
+}
+
 bool TableStore::Load()
 {
 	tables.clear();
@@ -74,16 +117,23 @@ bool TableStore::Load()
 	labels.clear();
 	traces.clear();
 	locators.clear();
+	functions.clear();
+	lastError.clear();
 	std::ifstream file(path);
 	if (!file)
 	{
-		return true; // No file yet.
+		if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND)
+			return true;
+		lastError = "Could not read saved analyser records";
+		return false;
 	}
 
 	SavedTable* current = nullptr;
 	SavedDisasm* currentDisasm = nullptr;
 	SavedTrace* currentTrace = nullptr;
 	SavedLocator* currentLocator = nullptr;
+	SavedFunction* currentFunction = nullptr;
+	std::vector<unsigned> functionFields;
 	bool inLabels = false;
 	std::string line;
 	while (std::getline(file, line))
@@ -102,7 +152,62 @@ bool TableStore::Load()
 			currentDisasm = nullptr;
 			currentTrace = nullptr;
 			currentLocator = nullptr;
+			currentFunction = nullptr;
 			inLabels = false;
+			continue;
+		}
+		if (line == "kind=function-v1" && current != nullptr)
+		{
+			tables.pop_back();
+			current = nullptr;
+			functions.emplace_back();
+			functionFields.push_back(0);
+			currentFunction = &functions.back();
+			continue;
+		}
+		if (currentFunction != nullptr)
+		{
+			const size_t eq = line.find('=');
+			const std::string key = line.substr(0, eq);
+			const std::string value = eq == std::string::npos ? "" : line.substr(eq + 1);
+			auto& t = currentFunction->target;
+			bool valid = true;
+			std::string decoded;
+			if (key == "identity")
+			{
+				std::istringstream values(value);
+				valid = static_cast<bool>(values >> t.rva >> t.x64 >> t.volumeSerial >> t.fileId >> t.fileSize >> t.fileLastWrite
+					>> t.imageSize >> t.imageTimestamp >> t.imageChecksum >> t.imageMachine);
+				values >> std::ws;
+				valid = valid && values.eof();
+			}
+			else if (key == "name" || key == "module" || key == "path" || key == "locator" || key == "project" || key == "bytes")
+			{
+				valid = Decode(value, decoded);
+				if (valid && key == "name") t.name = decoded;
+				else if (valid && key == "module") t.moduleName = decoded;
+				else if (valid && key == "path") valid = DecodeWide(decoded, t.modulePath);
+				else if (valid && key == "locator") currentFunction->locatorSpec = decoded;
+				else if (valid && key == "project")
+				{
+					std::wstring project;
+					valid = DecodeWide(decoded, project);
+					if (valid && !project.empty()) currentFunction->projects.push_back(std::move(project));
+				}
+				else if (valid && key == "bytes")
+				{
+					valid = decoded.size() == t.originalBytes.size();
+					if (valid) std::copy(decoded.begin(), decoded.end(), t.originalBytes.begin());
+				}
+			}
+			if (valid)
+			{
+				if (key == "identity") functionFields.back() |= 1;
+				if (key == "module") functionFields.back() |= 2;
+				if (key == "path") functionFields.back() |= 4;
+				if (key == "bytes") functionFields.back() |= 8;
+			}
+			if (!valid) { lastError = "Malformed saved function record"; functions.clear(); return false; }
 			continue;
 		}
 		if (line == "kind=labels" && current != nullptr)
@@ -226,12 +331,28 @@ bool TableStore::Load()
 			current->fields.push_back(std::move(field));
 		}
 	}
+	if (file.bad()) { lastError = "Could not finish reading saved analyser records"; return false; }
+	for (size_t i = 0; i < functions.size(); ++i)
+	{
+		const auto& t = functions[i].target;
+		if (functionFields[i] != 15 || t.modulePath.empty() || t.moduleName.empty() || !t.imageSize || t.rva >= t.imageSize ||
+			(t.imageMachine != IMAGE_FILE_MACHINE_AMD64 && t.imageMachine != IMAGE_FILE_MACHINE_I386) ||
+			(t.x64 != (t.imageMachine == IMAGE_FILE_MACHINE_AMD64)) || !t.fileSize ||
+			!t.fileId || t.originalBytes.size() > t.imageSize - t.rva ||
+			t.moduleName.find('\0') != std::string::npos)
+		{
+			lastError = "Incomplete saved function identity";
+			functions.clear();
+			return false;
+		}
+	}
 	return true;
 }
 
 bool TableStore::Save()
 {
-	std::ofstream file(path, std::ios::trunc);
+	const std::wstring pendingPath = path + L".pending";
+	std::ofstream file(pendingPath, std::ios::trunc);
 	if (!file)
 	{
 		lastError = "Could not write tables.txt";
@@ -291,6 +412,95 @@ bool TableStore::Save()
 			file << "spec=" << locator.spec << "\n\n";
 		}
 	}
+	for (const auto& function : functions)
+	{
+		const auto& t = function.target;
+		file << "[SavedFunction]\nkind=function-v1\n";
+		file << "name=" << Encode(t.name.data(), t.name.size()) << "\nmodule=" << Encode(t.moduleName.data(), t.moduleName.size())
+			<< "\npath=" << Encode(t.modulePath.data(), t.modulePath.size() * sizeof(wchar_t))
+			<< "\nlocator=" << Encode(function.locatorSpec.data(), function.locatorSpec.size()) << '\n';
+		file << "identity=" << std::dec << t.rva << ' ' << t.x64 << ' ' << t.volumeSerial << ' ' << t.fileId << ' '
+			<< t.fileSize << ' ' << t.fileLastWrite << ' ' << t.imageSize << ' ' << t.imageTimestamp << ' '
+			<< t.imageChecksum << ' ' << t.imageMachine << '\n';
+		file << "bytes=" << Encode(t.originalBytes.data(), t.originalBytes.size()) << '\n';
+		for (const auto& project : function.projects) file << "project=" << Encode(project.data(), project.size() * sizeof(wchar_t)) << '\n';
+		file << '\n';
+	}
+	file.flush();
+	const bool written = static_cast<bool>(file);
+	file.close();
+	if (!written || file.fail() || !MoveFileExW(pendingPath.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	{
+		lastError = "Could not persist saved analyser records";
+		DeleteFileW(pendingPath.c_str());
+		return false;
+	}
+	lastError.clear();
+	return true;
+}
+
+bool TableStore::SameFunctionIdentity(const hooking::HookTarget& a, const hooking::HookTarget& b)
+{
+	return !a.modulePath.empty() && !b.modulePath.empty() &&
+		CompareStringOrdinal(a.modulePath.c_str(), -1, b.modulePath.c_str(), -1, TRUE) == CSTR_EQUAL &&
+		a.rva == b.rva && a.imageMachine == b.imageMachine && a.imageSize == b.imageSize &&
+		a.imageTimestamp == b.imageTimestamp && a.imageChecksum == b.imageChecksum;
+}
+
+SavedFunction* TableStore::FindFunction(const hooking::HookTarget& target)
+{
+	for (auto& function : functions) if (SameFunctionIdentity(function.target, target)) return &function;
+	return nullptr;
+}
+
+const SavedFunction* TableStore::FindFunction(const hooking::HookTarget& target) const
+{
+	for (const auto& function : functions) if (SameFunctionIdentity(function.target, target)) return &function;
+	return nullptr;
+}
+
+void TableStore::UpsertFunction(SavedFunction function)
+{
+	function.target.address = 0;
+	function.target.processId = 0;
+	function.target.processCreation = 0;
+	if (auto* existing = FindFunction(function.target))
+	{
+		for (const auto& project : existing->projects)
+			if (std::find(function.projects.begin(), function.projects.end(), project) == function.projects.end()) function.projects.push_back(project);
+		*existing = std::move(function);
+	}
+	else functions.push_back(std::move(function));
+}
+
+bool TableStore::AddFunctionProject(const hooking::HookTarget& target, const std::wstring& project)
+{
+	auto* function = FindFunction(target);
+	if (!function || project.empty()) { lastError = "Saved function or project path is missing"; return false; }
+	for (const auto& existing : function->projects)
+		if (CompareStringOrdinal(existing.c_str(), -1, project.c_str(), -1, TRUE) == CSTR_EQUAL) return true;
+	function->projects.push_back(project);
+	lastError.clear();
+	return true;
+}
+
+bool TableStore::ReplaceFunctionProject(const hooking::HookTarget& target, size_t index, const std::wstring& project)
+{
+	auto* function = FindFunction(target);
+	if (!function || index >= function->projects.size() || project.empty())
+	{
+		lastError = "Saved function, project index, or replacement path is invalid";
+		return false;
+	}
+	for (size_t i = 0; i < function->projects.size(); ++i)
+	{
+		if (i != index && CompareStringOrdinal(function->projects[i].c_str(), -1, project.c_str(), -1, TRUE) == CSTR_EQUAL)
+		{
+			lastError = "Replacement project is already associated with this function";
+			return false;
+		}
+	}
+	function->projects[index] = project;
 	lastError.clear();
 	return true;
 }

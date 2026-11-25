@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Format/FieldTypes.h"
+#include "../Hooking/HookTarget.h"
 
 #include <cstdint>
 #include <string>
@@ -62,11 +63,20 @@ struct SavedLocator
 	std::string spec;
 };
 
-// All saved struct tables, stored in one plain-text file next to the exe.
+struct SavedFunction
+{
+	// Durable snapshot: address/PID/creation time are cleared on upsert and never serialized.
+	hooking::HookTarget target;
+	std::string locatorSpec;
+	std::vector<std::wstring> projects;
+};
+
+// All saved analyser records, stored in one plain-text file next to the exe.
 class TableStore
 {
 public:
 	TableStore();
+	explicit TableStore(std::wstring storagePath);
 
 	bool Load();
 	bool Save();
@@ -91,6 +101,13 @@ public:
 	void UpsertLocator(SavedLocator locator);
 	void RemoveLocator(size_t index);
 	const std::vector<SavedLocator>& Locators() const { return locators; }
+	const std::vector<SavedFunction>& Functions() const { return functions; }
+	SavedFunction* FindFunction(const hooking::HookTarget& target);
+	const SavedFunction* FindFunction(const hooking::HookTarget& target) const;
+	void UpsertFunction(SavedFunction function);
+	bool AddFunctionProject(const hooking::HookTarget& target, const std::wstring& project);
+	bool ReplaceFunctionProject(const hooking::HookTarget& target, size_t index, const std::wstring& project);
+	static bool SameFunctionIdentity(const hooking::HookTarget& left, const hooking::HookTarget& right);
 	const std::string& LastError() const { return lastError; }
 
 private:
@@ -100,6 +117,7 @@ private:
 	std::vector<SavedLabel> labels;
 	std::vector<SavedTrace> traces;
 	std::vector<SavedLocator> locators;
+	std::vector<SavedFunction> functions;
 	std::string lastError;
 };
 }

@@ -3,6 +3,7 @@
 #include "../app/AppModule.h"
 #include "AnalyserState.h"
 #include "Injector/Injector.h"
+#include "Hooking/HookPanel.h"
 #include "StructTable/StructTable.h"
 #include "Disasm/DisasmView.h"
 #include "Disasm/Pe.h"
@@ -29,6 +30,7 @@ public:
 	void ConfigureWindow(platform::WindowConfig& config) override;
 	void RenderTabs(ui::UiState& ui) override;
 	void OnFrame(ui::UiState& ui) override;
+	unsigned BackgroundFrameIntervalMs() const override { return 100; }
 	void OnShutdown() override;
 
 private:
@@ -44,11 +46,16 @@ private:
 	void RenderStaticRefsViews();
 	void HandleSymbolRequests();
 	void ApplySavedLabels();
+	void RenderSavedFunctions(bool forHooking);
+	void RefreshSavedFunctions();
+	bool ResolveSavedFunction(const SavedFunction& saved, hooking::HookTarget& target, std::string& error);
+	bool PersistStore();
 
 	AnalyserState state;
 	TableStore store;
 	std::unique_ptr<MemoryManager> memory;
 	Injector injector;
+	hooking::HookPanel hookPanel;
 	std::vector<std::unique_ptr<StructTable>> tables;
 	int nextTableId = 0;
 	std::vector<std::unique_ptr<DisasmView>> disasmViews;

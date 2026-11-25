@@ -8,6 +8,7 @@
 #include <Windows.h>
 
 #include <cstdio>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -30,7 +31,8 @@ std::wstring ToWide(const char* text)
 
 AnalyserModule::AnalyserModule()
 {
-	store.Load();
+	if (!store.Load()) state.storageStatus = store.LastError();
+	RefreshSavedFunctions();
 }
 AnalyserModule::~AnalyserModule() = default;
 
@@ -57,6 +59,12 @@ void AnalyserModule::RenderTabs(ui::UiState&)
 		injector.Render(state.attach, memory.get());
 		ImGui::EndTabItem();
 	}
+	if (ImGui::BeginTabItem("Hooking"))
+	{
+		RenderSavedFunctions(true);
+		hookPanel.Render(memory.get(), store);
+		ImGui::EndTabItem();
+	}
 	if (ImGui::BeginTabItem("Disassembly"))
 	{
 		RenderDisasmSection();
@@ -75,6 +83,22 @@ void AnalyserModule::OnFrame(ui::UiState& ui)
 	}
 	HandleSymbolRequests();
 	HandleAttachRequests();
+	if (state.hookRequest && memory)
+	{
+		hookPanel.Select(*state.hookRequest);
+	}
+	state.hookRequest.reset();
+	if (state.savedHookRequest)
+	{
+		hooking::HookTarget target;
+		if (ResolveSavedFunction(*state.savedHookRequest, target, state.savedFunctionStatus))
+		{
+			hookPanel.Select(target);
+			state.savedFunctionStatus = "Saved function selected; open the Hooking tab";
+		}
+		state.savedHookRequest.reset();
+	}
+	hookPanel.Poll(memory.get());
 	injector.Poll(memory.get(), [this]() {
 		RefreshModules();
 		return !modules.empty();
@@ -83,6 +107,7 @@ void AnalyserModule::OnFrame(ui::UiState& ui)
 
 void AnalyserModule::OnShutdown()
 {
+	hookPanel.OnShutdown();
 	injector.OnShutdown();
 	tables.clear();
 	ClearDisasm();
@@ -237,7 +262,7 @@ void AnalyserModule::RenderStructSection()
 	if (ImGui::Button("Delete"))
 	{
 		store.Remove(static_cast<size_t>(state.selectedSaved));
-		store.Save();
+		PersistStore();
 		state.selectedSaved = -1;
 	}
 	ImGui::EndDisabled();
@@ -262,6 +287,7 @@ void AnalyserModule::HandleAttachRequests()
 	if (attach.detachRequested)
 	{
 		attach.detachRequested = false;
+		hookPanel.OnDetach();
 		injector.OnDetach();
 		tables.clear();
 		ClearDisasm();
@@ -287,6 +313,7 @@ void AnalyserModule::HandleAttachRequests()
 			modules = memory->EnumerateModules();
 			symbols = std::make_unique<disasm::SymbolResolver>(*memory, modules);
 			ApplySavedLabels();
+			RefreshSavedFunctions();
 		}
 		catch (const std::exception& error)
 		{
@@ -330,7 +357,7 @@ void AnalyserModule::Rendertables()
 			store.Upsert(std::move(saved));
 		}
 		state.saveRequests.clear();
-		store.Save();
+		PersistStore();
 	}
 }
 
@@ -351,6 +378,13 @@ void AnalyserModule::ApplySavedLabels()
 
 void AnalyserModule::HandleSymbolRequests()
 {
+	if (!state.functionSaveRequests.empty())
+	{
+		for (auto& function : state.functionSaveRequests) store.UpsertFunction(std::move(function));
+		state.functionSaveRequests.clear();
+		PersistStore();
+		RefreshSavedFunctions();
+	}
 	if (!state.labelRequests.empty())
 	{
 		bool changed = false;
@@ -379,7 +413,7 @@ void AnalyserModule::HandleSymbolRequests()
 		state.labelRequests.clear();
 		if (changed)
 		{
-			store.Save();
+			PersistStore();
 		}
 	}
 
@@ -390,7 +424,7 @@ void AnalyserModule::HandleSymbolRequests()
 			store.UpsertTrace(std::move(trace));
 		}
 		state.traceSaveRequests.clear();
-		store.Save();
+		PersistStore();
 	}
 
 	if (!state.locatorSaveRequests.empty())
@@ -400,7 +434,7 @@ void AnalyserModule::HandleSymbolRequests()
 			store.UpsertLocator(std::move(locator));
 		}
 		state.locatorSaveRequests.clear();
-		store.Save();
+		PersistStore();
 	}
 }
 
@@ -553,6 +587,8 @@ void AnalyserModule::ClearDisasm()
 	state.labelRequests.clear();
 	state.staticScanRequests.clear();
 	state.staticBatchScanRequests.clear();
+	state.functionSaveRequests.clear();
+	for (auto& function : state.savedFunctions) { function.address = 0; function.error = "No attached process"; }
 }
 
 void AnalyserModule::RefreshModules()
@@ -564,6 +600,7 @@ void AnalyserModule::RefreshModules()
 	// Trace windows hold resolver-independent addresses, so only symbols need rebuilding.
 	symbols = std::make_unique<disasm::SymbolResolver>(*memory, modules);
 	ApplySavedLabels();
+	RefreshSavedFunctions();
 }
 
 void AnalyserModule::RenderDisasmSection()
@@ -676,7 +713,7 @@ void AnalyserModule::RenderDisasmSection()
 	if (ImGui::Button("Delete##disasm"))
 	{
 		store.RemoveDisasm(static_cast<size_t>(state.selectedSavedDisasm));
-		store.Save();
+		PersistStore();
 		state.selectedSavedDisasm = -1;
 	}
 	ImGui::EndDisabled();
@@ -742,7 +779,7 @@ void AnalyserModule::RenderDisasmSection()
 	if (ImGui::Button("Delete##trace"))
 	{
 		store.RemoveTrace(static_cast<size_t>(state.selectedSavedTrace));
-		store.Save();
+		PersistStore();
 		state.selectedSavedTrace = -1;
 	}
 	ImGui::EndDisabled();
@@ -789,30 +826,160 @@ void AnalyserModule::RenderDisasmSection()
 	if (ImGui::Button("Resolve & Disasm##locator"))
 	{
 		const auto& savedLoc = savedLocators[state.selectedSavedLocator];
+		state.locatorStatus.clear();
 		if (const auto locator = IStaticLocator::Deserialize(savedLoc.spec))
 		{
 			ResolveContext ctx{ *memory, symbols.get(), state.attach.PointerSize() };
-			if (const auto resolved = locator->Resolve(ctx))
+			if (const auto resolved = locator->Resolve(ctx); resolved && *resolved)
 			{
-				DisasmOpenRequest req;
-				req.address = *resolved;
-				req.name = savedLoc.name;
-				state.disasmOpenRequests.push_back(std::move(req));
+				state.disasmOpenRequests.push_back({ *resolved, savedLoc.name });
 			}
+			else state.locatorStatus = "Saved locator did not resolve in the attached process: " + savedLoc.name;
 		}
+		else state.locatorStatus = "Invalid saved locator specification: " + savedLoc.name;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Open static references scan##locator"))
+	{
+		const auto& savedLoc = savedLocators[state.selectedSavedLocator];
+		state.locatorStatus.clear();
+		if (const auto locator = IStaticLocator::Deserialize(savedLoc.spec))
+		{
+			ResolveContext ctx{ *memory, symbols.get(), state.attach.PointerSize() };
+			if (const auto resolved = locator->Resolve(ctx); resolved && *resolved)
+				state.staticScanRequests.push_back(*resolved);
+			else state.locatorStatus = "Saved locator did not resolve in the attached process: " + savedLoc.name;
+		}
+		else state.locatorStatus = "Invalid saved locator specification: " + savedLoc.name;
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Delete##locator"))
 	{
 		store.RemoveLocator(static_cast<size_t>(state.selectedSavedLocator));
-		store.Save();
+		PersistStore();
 		state.selectedSavedLocator = -1;
 	}
 	ImGui::EndDisabled();
+	if (!state.locatorStatus.empty()) ImGui::TextColored(ui::GetTheme().error, "%s", state.locatorStatus.c_str());
 
 	ImGui::EndDisabled();
+	RenderSavedFunctions(false);
 }
 
+bool AnalyserModule::PersistStore()
+{
+	if (!store.Save())
+	{
+		state.storageStatus = store.LastError();
+		return false;
+	}
+	state.storageStatus.clear();
+	return true;
+}
+
+bool AnalyserModule::ResolveSavedFunction(const SavedFunction& saved, hooking::HookTarget& target, std::string& error)
+{
+	error.clear();
+	if (!memory || !state.attach.attached) { error = "No attached process"; return false; }
+	const auto& expected = saved.target;
+	const auto loaded = memory->EnumerateModules();
+	const ModuleInfo* matched = nullptr;
+	for (const auto& module : loaded)
+	{
+		if (CompareStringOrdinal(module.path.c_str(), -1, expected.modulePath.c_str(), -1, TRUE) != CSTR_EQUAL) continue;
+		if (matched) { error = "Saved module path is ambiguous in the attached process"; return false; }
+		matched = &module;
+	}
+	if (!matched) { error = "Saved module path is not loaded in the attached process"; return false; }
+	if (expected.rva >= matched->size || expected.rva > (std::numeric_limits<uintptr_t>::max)() - matched->base)
+	{
+		error = "Saved function RVA is outside the loaded module";
+		return false;
+	}
+	FunctionStaticReport report;
+	report.inModule = true;
+	report.moduleName = expected.moduleName;
+	report.targetName = expected.name;
+	report.rva = expected.rva;
+	report.targetAddress = matched->base + static_cast<uintptr_t>(expected.rva);
+	if (!hooking::ValidateHookTarget(*memory, report, target, error)) return false;
+	if (!TableStore::SameFunctionIdentity(expected, target) || expected.x64 != target.x64 ||
+		expected.volumeSerial != target.volumeSerial || expected.fileId != target.fileId ||
+		expected.fileSize != target.fileSize || expected.fileLastWrite != target.fileLastWrite ||
+		expected.originalBytes != target.originalBytes)
+	{
+		error = "Saved function module identity, version, architecture, or original bytes changed; rescan the function";
+		return false;
+	}
+	return hooking::RevalidateHookTarget(*memory, target, error);
+}
+
+void AnalyserModule::RefreshSavedFunctions()
+{
+	state.savedFunctions.clear();
+	for (const auto& saved : store.Functions())
+	{
+		ResolvedSavedFunction entry;
+		entry.saved = saved;
+		hooking::HookTarget target;
+		if (ResolveSavedFunction(saved, target, entry.error)) entry.address = target.address;
+		state.savedFunctions.push_back(std::move(entry));
+	}
+	if (state.selectedSavedFunction >= static_cast<int>(state.savedFunctions.size())) state.selectedSavedFunction = -1;
+}
+
+void AnalyserModule::RenderSavedFunctions(bool forHooking)
+{
+	ImGui::PushID(forHooking ? "hookSavedFunctions" : "staticSavedFunctions");
+	ImGui::SeparatorText("Saved functions");
+	const auto& functions = store.Functions();
+	if (state.selectedSavedFunction >= static_cast<int>(functions.size())) state.selectedSavedFunction = -1;
+	const char* preview = state.selectedSavedFunction >= 0 ? functions[state.selectedSavedFunction].target.name.c_str() : "(select saved function)";
+	if (ImGui::BeginCombo("Function", preview))
+	{
+		for (int i = 0; i < static_cast<int>(functions.size()); ++i)
+		{
+			ImGui::PushID(i);
+			const auto& t = functions[i].target;
+			char label[512];
+			std::snprintf(label, sizeof(label), "%s (%s+0x%llX, PE %08X)", t.name.c_str(), t.moduleName.c_str(),
+				static_cast<unsigned long long>(t.rva), t.imageTimestamp);
+			if (ImGui::Selectable(label, i == state.selectedSavedFunction))
+			{
+				state.selectedSavedFunction = i;
+				state.savedFunctionStatus.clear();
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
+	if (ImGui::Button("Refresh saved targets")) RefreshSavedFunctions();
+	ImGui::SameLine();
+	ImGui::BeginDisabled(state.selectedSavedFunction < 0);
+	if (ImGui::Button(forHooking ? "Select for hooking" : "Open static references scan"))
+	{
+		hooking::HookTarget target;
+		if (ResolveSavedFunction(functions[state.selectedSavedFunction], target, state.savedFunctionStatus))
+		{
+			if (forHooking) { hookPanel.Select(target); state.savedFunctionStatus = "Saved function validated and selected"; }
+			else { state.staticScanRequests.push_back(target.address); state.savedFunctionStatus = "Static references scan queued"; }
+		}
+	}
+	ImGui::EndDisabled();
+	if (!memory) ImGui::TextDisabled("Attach a process before resolving saved functions.");
+	if (state.selectedSavedFunction >= 0 && state.selectedSavedFunction < static_cast<int>(state.savedFunctions.size()))
+	{
+		const auto& entry = state.savedFunctions[state.selectedSavedFunction];
+		if (!entry.error.empty()) ImGui::TextColored(ui::GetTheme().error, "%s", entry.error.c_str());
+	}
+	if (!state.savedFunctionStatus.empty()) ImGui::TextWrapped("%s", state.savedFunctionStatus.c_str());
+	if (!state.storageStatus.empty())
+	{
+		ImGui::TextColored(ui::GetTheme().error, "%s", state.storageStatus.c_str());
+		if (ImGui::Button("Retry saving records")) PersistStore();
+	}
+	ImGui::PopID();
+}
 void AnalyserModule::RenderDisasmViews()
 {
 	if (memory)
@@ -844,7 +1011,7 @@ void AnalyserModule::RenderDisasmViews()
 			store.UpsertDisasm(std::move(saved));
 		}
 		state.disasmSaveRequests.clear();
-		store.Save();
+		PersistStore();
 	}
 }
 }

@@ -1,4 +1,5 @@
 #include <stdexcept>     
+#include <algorithm>
 #include "MemoryManager.h"
 
 
@@ -80,7 +81,11 @@ std::vector<ModuleInfo> MemoryManager::EnumerateModules() const
 			info.path = moduleEntry.szExePath;
 			info.base = reinterpret_cast<uintptr_t>(moduleEntry.modBaseAddr);
 			info.size = moduleEntry.modBaseSize;
-			modules.push_back(std::move(info));
+			const bool duplicate = std::any_of(modules.begin(), modules.end(), [&info](const ModuleInfo& existing) {
+				return existing.base == info.base && existing.size == info.size &&
+					_wcsicmp(existing.name.c_str(), info.name.c_str()) == 0 && _wcsicmp(existing.path.c_str(), info.path.c_str()) == 0;
+			});
+			if (!duplicate) modules.push_back(std::move(info));
 		} while (Module32NextW(hSnapshot, &moduleEntry));
 	}
 	CloseHandle(hSnapshot);
